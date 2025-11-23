@@ -1,5 +1,9 @@
 from RAG.base_rag import RAGBase
 from openai import OpenAI
+from agents import set_default_openai_key, set_tracing_export_api_key, Agent, FileSearchTool, Runner, trace
+from pydantic import BaseModel
+
+from prompts.prompts import create_prompt
 
 from pathlib import Path
 from typing import List, Iterator
@@ -7,6 +11,13 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+set_default_openai_key(os.getenv("OPENAI_API_KEY"))
+set_tracing_export_api_key(os.getenv("OPENAI_API_KEY"))
+
+class Section(BaseModel):
+    title: str
+    content: str
 
 class OpenAIRAG(RAGBase):
 
@@ -122,5 +133,38 @@ class OpenAIRAG(RAGBase):
                 break  # stop after the first assistant message
 
         return answer_text, file_names
+
+    async def generate_section(self):
+        file_search_agent = Agent(
+                name="File searcher",
+                instructions="You are a document generation agent. You write sections of an FLB document in German only based on the information in the vector store.",
+                output_type=Section,
+                tools=[
+                    FileSearchTool(
+                        max_num_results=4,
+                        vector_store_ids=[self.vector_store.id],
+                        include_search_results=True,
+                    )
+                ],
+            )  
+
+        section = '''------------------------------------------------------------
+                    Projektbeschreibung und Leistungsumfang
+                    ------------------------------------------------------------
+                    Include:
+                    - project description
+                    - address/location
+                    - repowering scope
+                    - grid connection norms (e.g., VDE-AR-N 4105/4110)
+                    - summary of deliverables (planning, installation, commissioning)
+                    - options (wallboxes, heat pumps)
+                    - what is excluded
+
+                    Style: Overview + enumerated scope of works.'''
+
+        prompt = create_prompt(section)
+        result = await Runner.run(file_search_agent, prompt)
+        return result.final_output
+        
 
 
