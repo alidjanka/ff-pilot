@@ -25,6 +25,7 @@ class OpenAIRAG(RAGBase):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.collection_name = collection_name
         self.model = "gpt-4.1"
+        self.vector_store_id = self.create_or_retrieve_vector_store() # might fail
         
     def create_or_retrieve_vector_store(self):
         stores = self.client.vector_stores.list()
@@ -134,7 +135,7 @@ class OpenAIRAG(RAGBase):
 
         return answer_text, file_names
 
-    async def generate_section(self):
+    async def generate_section(self, prompt):
         file_search_agent = Agent(
                 name="File searcher",
                 instructions="You are a document generation agent. You write sections of an FLB document in German only based on the information in the vector store.",
@@ -148,23 +149,46 @@ class OpenAIRAG(RAGBase):
                 ],
             )  
 
-        section = '''------------------------------------------------------------
-                    Projektbeschreibung und Leistungsumfang
-                    ------------------------------------------------------------
-                    Include:
-                    - project description
-                    - address/location
-                    - repowering scope
-                    - grid connection norms (e.g., VDE-AR-N 4105/4110)
-                    - summary of deliverables (planning, installation, commissioning)
-                    - options (wallboxes, heat pumps)
-                    - what is excluded
-
-                    Style: Overview + enumerated scope of works.'''
-
-        prompt = create_prompt(section)
         result = await Runner.run(file_search_agent, prompt)
         return result.final_output
+
+    def build_context(self, sections: List[Section]) -> str:
+        if not sections:
+            return ""
+
+        context = "Dies sind die bisher erstellten Dokumentabschnitte:\n\n"
+        for sec in sections:
+            context += f"### {sec.title}\n{sec.content}\n\n"
+        return context
+
+    def build_prompt_with_context(self, section_description: str, previous_sections: List[Section]) -> str:
+        context_text = self.build_context(previous_sections) # based on context maybe a different prompt here
+        prompt = create_prompt(section_description)
+        return f"{context_text}\n\nJetzt schreibe den nächsten Abschnitt:\n{prompt}"
+
+
+    async def generate_document(self, prompts: List[str]) -> List[Section]:
+        """
+        Generate a full document, where each section is aware of all previously
+        generated sections.
+        """
+        sections = []
+
+        for p in prompts:
+            contextual_prompt = self.build_prompt_with_context(p, sections)
+            section: Section = await self.generate_section(contextual_prompt)
+            sections.append(section)
+
+        return sections
+
+    async def build_document_text(self, prompts: List[str]) -> str:
+        sections = await self.generate_document(prompts)
+
+        full_doc = ""
+        for sec in sections:
+            full_doc += f"# {sec.title}\n\n{sec.content}\n\n"
+
+        return full_doc
         
 
 

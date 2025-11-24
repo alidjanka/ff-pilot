@@ -230,5 +230,111 @@ Include:
 - statics and reuse conditions of old substructure
 - safety norms (Arbeitsschutz, BG Bau)
 - transition between dismantling → new installation
+''',
+'''------------------------------------------------------------
+3. Abschnitt: Modulanordnung
+------------------------------------------------------------
+Include:
+- roof type, orientation, pitch
+- static constraints
+- example layout incl. kWp calculation
+- safety requirements (Absturz, Feuer, Blitzschutz)''',
+'''
+------------------------------------------------------------
+4. Abschnitt: Photovoltaikmodule
+------------------------------------------------------------
+Include:
+- module type (e.g., Doppelglas, Tier 1)
+- guarantees (linear performance, product warranty)
+- compliance with norms (EN 61215, EN 61730)
+- technical requirements
+- placeholders for manufacturer, model, power rating
+''',
+'''
+------------------------------------------------------------
+5. Abschnitt: Dach und Unterkonstruktion
+------------------------------------------------------------
+Include:
+- roof material (e.g., Trapezblech)
+- structural/static requirements
+- watertightness rules
+- aerodynamics
+- snow/wind loads
+- thermal expansion principles (Dehnungsfugen)
+- mounting instructions
+''',
+'''
+------------------------------------------------------------
+6. Abschnitt: Wechselrichter
+------------------------------------------------------------
+Include:
+- indoor/outdoor installation guidance
+- required electrical protections
+- interface communication (RS485, Modbus TCP)
+- logging requirements
+- warranty period
+- norm compliance for inverter safety
+''',
+'''
+------------------------------------------------------------
+7. Abschnitt: Datenkommunikation
+------------------------------------------------------------
+Include:
+- data logger requirements
+- LTE/WLAN configuration
+- router/antenna requirements
+- monitoring system compatibility
+''',
+'''
+------------------------------------------------------------
+8. Abschnitt: DC-seitige Installationen
+------------------------------------------------------------
+Include:
+- cable routing
+- DC protection requirements
+- grounding and equipotential bonding
+- installation distance requirements
+''',
+'''
+------------------------------------------------------------
+9. Abschnitt: AC-seitige Installationen
+------------------------------------------------------------
+Include:
+- routing inside/outside building
+- house connection, Zählerschrank
+- AC protections
+- wall penetrations + fire sealing
+- Wandler- oder Direktmessung (TAB-konform)
+- NSHV connection requirements
+''',
+'''
+------------------------------------------------------------
+10. Abschnitt: Messkonzept
+------------------------------------------------------------
+Include:
+- Einspeiseart (Volleinspeisung / Überschuss)
+- required meters
+- measurement direction
+- VNB requirements
+''',
+'''
+------------------------------------------------------------
+11. Abschnitt: Brand- und Blitzschutz
+------------------------------------------------------------
+Include:
+- compliance with building fire regulations
+- cable routing outside building if possible
+- fire walls and sealing (Brandschutzschott)
+- integration into lightning protection concept
+''',
+'''
+------------------------------------------------------------
+12. Abschnitt: Arbeitsschutz
+------------------------------------------------------------
+Include:
+- BG Bau rules
+- fall protection
+- roof access
+- safety procedures during installation
 '''
 ]
