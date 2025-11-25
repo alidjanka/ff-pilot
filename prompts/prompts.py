@@ -91,7 +91,6 @@ Include:
 - grid connection norms (e.g., VDE-AR-N 4105)
 - summary of deliverables (planning, installation, commissioning)
 - options (wallboxes, heat pumps)
-- what is excluded
 
 Style: Overview + enumerated scope of works.
 
