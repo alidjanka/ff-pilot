@@ -167,14 +167,14 @@ class OpenAIRAG(RAGBase):
         return f"{context_text}\n\nJetzt schreibe den nächsten Abschnitt:\n{prompt}"
 
 
-    async def generate_document(self, prompts: List[str]) -> List[Section]:
+    async def generate_document(self, section_descriptions: List[str]) -> List[Section]:
         """
         Generate a full document, where each section is aware of all previously
         generated sections.
         """
         sections = []
 
-        for p in prompts:
+        for p in section_descriptions:
             contextual_prompt = self.build_prompt_with_context(p, sections)
             section: Section = await self.generate_section(contextual_prompt)
             sections.append(section)
@@ -189,6 +189,15 @@ class OpenAIRAG(RAGBase):
             full_doc += f"# {sec.title}\n\n{sec.content}\n\n"
 
         return full_doc
+
+    async def add_section(self, section_description: str, full_doc: str):
+        prompt = create_prompt(section_description)
+        contextual_prompt = f"Hier ist das vollständige Dokument:{full_doc}\n\nJetzt schreibe einen neuen Abschnitt:\n{prompt}"
+        section: Section = await self.generate_section(contextual_prompt)
+        #full_doc += '\n\n' + section.title + '\n\n' + section.content
+        return section
+
+        
         
 
 

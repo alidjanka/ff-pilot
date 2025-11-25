@@ -205,7 +205,7 @@ Include:
 - safety procedures during installation
 '''
 
-sections = [
+Sections = [
 '''------------------------------------------------------------
 Projektbeschreibung und Leistungsumfang
 ------------------------------------------------------------
@@ -326,15 +326,5 @@ Include:
 - cable routing outside building if possible
 - fire walls and sealing (Brandschutzschott)
 - integration into lightning protection concept
-''',
-'''
-------------------------------------------------------------
-12. Abschnitt: Arbeitsschutz
-------------------------------------------------------------
-Include:
-- BG Bau rules
-- fall protection
-- roof access
-- safety procedures during installation
 '''
 ]
