@@ -19,6 +19,9 @@ class Section(BaseModel):
     title: str
     content: str
 
+class UpdatedDocument(BaseModel):
+    content: str
+
 class OpenAIRAG(RAGBase):
 
     def __init__(self, collection_name):
@@ -196,6 +199,23 @@ class OpenAIRAG(RAGBase):
         section: Section = await self.generate_section(contextual_prompt)
         #full_doc += '\n\n' + section.title + '\n\n' + section.content
         return section
+
+    async def update_document(self, prompt: str, full_doc: str):
+        document_update_agent = Agent(
+                name="Document Updater",
+                instructions="You are a document generation agent. Based on the provided document and user prompt, you update the document. Keep the structure same only change the content based on user query. Return the updated document in German.",
+                output_type=UpdatedDocument,
+                tools=[
+                    FileSearchTool(
+                        max_num_results=4,
+                        vector_store_ids=[self.vector_store.id],
+                        include_search_results=True,
+                    )
+                ],
+            )  
+
+        result = await Runner.run(document_update_agent, prompt)
+        return result.final_output        
 
         
         

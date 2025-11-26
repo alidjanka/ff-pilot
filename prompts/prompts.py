@@ -60,7 +60,6 @@ def create_prompt(section_description):
 
     Write a polished, publication-ready German section with:
 
-    1. The section title (as provided in <section_name>)
     2. The section content following:
     - the style of German FLB texts
     - the instructions above
@@ -206,7 +205,7 @@ Include:
 
 Sections = [
 '''------------------------------------------------------------
-Projektbeschreibung und Leistungsumfang
+1. Abschnitt: Projektbeschreibung und Leistungsumfang
 ------------------------------------------------------------
 Include:
 - project description
@@ -220,7 +219,7 @@ Include:
 Style: Overview + enumerated scope of works.''',
 '''
 ------------------------------------------------------------
-Repowering bestehender PV-Anlagen
+2. Abschnitt: Repowering bestehender PV-Anlagen
 ------------------------------------------------------------
 Include:
 - detailed description of dismantling
@@ -230,7 +229,8 @@ Include:
 - safety norms (Arbeitsschutz, BG Bau)
 - transition between dismantling → new installation
 ''',
-'''------------------------------------------------------------
+'''
+------------------------------------------------------------
 3. Abschnitt: Modulanordnung
 ------------------------------------------------------------
 Include:
