@@ -47,6 +47,13 @@ class OpenAIRAG(RAGBase):
             self.vector_store = existing_store
             return existing_store.id
 
+    def list_files(self):
+        return self.client.vector_stores.files.list(vector_store_id=self.vector_store_id)
+
+    def retrieve_filename(self, file_id):   
+        file_obj = self.client.files.retrieve(file_id)
+        return file_obj.filename
+
     def ingest_file(self, file_path):
         if file_path.suffix.lower() == ".pdf":
             # Handle local file path
