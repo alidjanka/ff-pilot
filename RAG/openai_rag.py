@@ -4,7 +4,7 @@ from agents import set_default_openai_key, set_tracing_export_api_key, Agent, Fi
 from pydantic import BaseModel
 
 from prompts.prompts import create_prompt
-
+from prompts.prompts_v2 import create_prompt_v2
 from pathlib import Path
 from typing import List, Iterator
 import os
@@ -152,7 +152,7 @@ class OpenAIRAG(RAGBase):
                 output_type=Section,
                 tools=[
                     FileSearchTool(
-                        max_num_results=4,
+                        max_num_results=5,
                         vector_store_ids=[self.vector_store.id],
                         include_search_results=True,
                     )
@@ -201,7 +201,7 @@ class OpenAIRAG(RAGBase):
         return full_doc
 
     async def add_section(self, section_description: str, full_doc: str):
-        prompt = create_prompt(section_description)
+        prompt = create_prompt_v2(section_description)
         contextual_prompt = f"Hier ist das vollständige Dokument:{full_doc}\n\nJetzt schreibe einen neuen Abschnitt:\n{prompt}"
         section: Section = await self.generate_section(contextual_prompt)
         #full_doc += '\n\n' + section.title + '\n\n' + section.content

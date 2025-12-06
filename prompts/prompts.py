@@ -33,7 +33,8 @@ def create_prompt(section_description):
 
     5. No contradictions:
     If context contains conflicting data, prefer the most recent or most specific.
-
+    6. Avoid Non-Project Generic Explanations
+    No PV introductions, tutorials, marketing language, or repetitive content
 
     ============================================================
     SECTION-SPECIFIC INSTRUCTIONS
@@ -257,9 +258,6 @@ Include:
 - roof material (e.g., Trapezblech)
 - structural/static requirements
 - watertightness rules
-- aerodynamics
-- snow/wind loads
-- thermal expansion principles (Dehnungsfugen)
 - mounting instructions
 ''',
 '''
@@ -325,5 +323,11 @@ Include:
 - cable routing outside building if possible
 - fire walls and sealing (Brandschutzschott)
 - integration into lightning protection concept
+''',
 '''
+------------------------------------------------------------
+12. Abschnitt: Arbeitsschutz
+------------------------------------------------------------
+Gesetzlich vorgeschriebene Arbeitssicherheitsmaßnahmen (insb. gegen Absturz) während der Installation sind gemäß BG Bau einzuhalten.
+''',
 ]

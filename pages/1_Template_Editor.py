@@ -12,7 +12,7 @@ SECTIONS = Sections
 # ---------- Initialize templates in session ----------
 if "templates" not in st.session_state:
     st.session_state.templates = {
-        sec: f"Anweisungen für: {sec}" for sec in SECTIONS
+        sec: f"{sec}" for sec in SECTIONS
     }
 
 # ---------- UI: Sidebar section selector ----------
@@ -35,7 +35,7 @@ selected_index = sidebar_labels.index(selected_label)
 selected_section = SECTIONS[selected_index]
 
 # ---------- UI: Main content ----------
-st.markdown(f"## ✏️ Vorlage bearbeiten: {selected_section}")
+st.markdown(f"## ✏️ Vorlage bearbeiten:")
 
 current_text = st.session_state.templates[selected_section]
 
