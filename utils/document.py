@@ -1,11 +1,25 @@
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.text.paragraph import Paragraph
-from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
-from docx.shared import Pt
+from docx.oxml.ns import qn
 from io import BytesIO
 from RAG.openai_rag import OpenAIRAG
+import re
 
+def normalize_instructions(raw: str) -> str:
+    text = raw.strip()
+
+    # Replace fancy bullets with simple hyphens
+    text = re.sub(r"[•●▪∙]+", "-", text)
+
+    # Remove multiple empty lines
+    text = re.sub(r"\n\s*\n\s*\n+", "\n\n", text)
+
+    # Ensure single-line separators become periods
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
+
+    cleaned = "\n".join(lines)
+    return cleaned
 
 # -------------------------------------------------------
 # Helper: insert paragraph AFTER a given paragraph
@@ -96,7 +110,7 @@ async def generate_section_text(instructions: str) -> str:
 # -------------------------------------------------------
 # Main: fill FLB template
 # -------------------------------------------------------
-async def fill_flb_document(template_path: str, output_path: str, user_inputs: dict, cover_keys: list = ["Projekt", "Objektadresse", "Ansprechpartner"]):
+async def fill_flb_document(template_path: str, user_inputs: dict, cover_keys: list = ["Projekt", "Objektadresse", "Ansprechpartner"]):
     doc = Document(template_path)
 
     # -------------------------------------------------------
@@ -146,9 +160,10 @@ async def fill_flb_document(template_path: str, output_path: str, user_inputs: d
     generated_sections = []
     for section in sections:
         instructions = "\n".join(p.text for p in section["instruction_paras"]).strip()
-        print(instructions)
+        instructions_clean = normalize_instructions(instructions)
+        print(instructions_clean)
         #generated = generate_section_text(instructions)
-        contextual_prompt = rag.build_prompt_with_context(instructions, generated_sections)
+        contextual_prompt = rag.build_prompt_with_context(instructions_clean, generated_sections)
         generated_section = await rag.generate_section(contextual_prompt)
         generated_sections.append(generated_section)
         # Clear original instruction paragraphs
@@ -165,6 +180,108 @@ async def fill_flb_document(template_path: str, output_path: str, user_inputs: d
     #print(f"Created document: {output_path}")
     buffer = BytesIO()
     doc.save(buffer)
+    buffer.seek(0)
+
+    return buffer.getvalue()
+
+
+async def fill_flb_document_2(
+    cover_template_path: str,
+    instructions_template_path: str,
+    user_inputs: dict,
+    cover_keys: list = ["Projekt", "Objektadresse", "Ansprechpartner"]
+):
+    # -------------------------------------------------------
+    # STEP 1 — Fill cover sheet document
+    # -------------------------------------------------------
+    cover_doc = Document(cover_template_path)
+    
+    for table in cover_doc.tables:
+        for row in table.rows:
+            if len(row.cells) < 2:
+                continue
+
+            left_text = row.cells[0].text.strip().replace(":", "").strip()
+
+            if left_text in cover_keys and left_text in user_inputs:
+                set_cell_text_preserve_style(row.cells[0], row.cells[1], user_inputs[left_text])
+
+    # -------------------------------------------------------
+    # STEP 2 — Process instructions document
+    # -------------------------------------------------------
+    instructions_doc = Document(instructions_template_path)
+    
+    # Remove all content before the first Heading 2 (i.e., the cover sheet)
+    first_heading_index = None
+    for i, para in enumerate(instructions_doc.paragraphs):
+        if para.style.name == "Heading 2":
+            first_heading_index = i
+            break
+    
+    # Delete paragraphs before first heading
+    if first_heading_index is not None:
+        for i in range(first_heading_index - 1, -1, -1):
+            p = instructions_doc.paragraphs[i]._element
+            p.getparent().remove(p)
+    
+    # Also remove tables that are part of the cover (typically the first table)
+    if len(instructions_doc.tables) > 0:
+        tbl = instructions_doc.tables[0]._element
+        tbl.getparent().remove(tbl)
+    
+    # Now process remaining paragraphs
+    paragraphs = instructions_doc.paragraphs
+    sections = []
+    current_section = None
+
+    for para in paragraphs:
+        if para.style.name == "Heading 2":
+            if current_section:
+                sections.append(current_section)
+            current_section = {
+                "title_para": para,
+                "instruction_paras": []
+            }
+        else:
+            if current_section:
+                current_section["instruction_paras"].append(para)
+
+    if current_section:
+        sections.append(current_section)
+
+    # -------------------------------------------------------
+    # STEP 3 — Generate and insert section texts
+    # -------------------------------------------------------
+    rag = OpenAIRAG(collection_name="ff-pilot")
+    generated_sections = []
+    
+    for section in sections:
+        instructions = "\n".join(p.text for p in section["instruction_paras"]).strip()
+        instructions_clean = normalize_instructions(instructions)
+        print(instructions_clean)
+        
+        contextual_prompt = rag.build_prompt_with_context(instructions_clean, generated_sections)
+        generated_section = await rag.generate_section(contextual_prompt)
+        generated_sections.append(generated_section)
+        
+        for p in section["instruction_paras"]:
+            p.text = ""
+
+        insert_paragraph_after(section["title_para"], generated_section.content)
+
+    # -------------------------------------------------------
+    # STEP 4 — Merge documents
+    # -------------------------------------------------------
+    cover_doc.add_page_break()
+    
+    for element in instructions_doc.element.body:
+        cover_doc.element.body.append(element)
+
+    # -------------------------------------------------------
+    # STEP 5 — Save output
+    # -------------------------------------------------------
+    buffer = BytesIO()
+    cover_doc.save(buffer)
     buffer.seek(0)
 
     return buffer.getvalue()
