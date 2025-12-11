@@ -1,0 +1,160 @@
+from docx import Document
+from docx.oxml import OxmlElement
+from docx.text.paragraph import Paragraph
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
+from docx.shared import Pt
+
+
+# -------------------------------------------------------
+# Helper: insert paragraph AFTER a given paragraph
+# -------------------------------------------------------
+def insert_paragraph_after(paragraph, text=""):
+    new_p = OxmlElement("w:p")
+    paragraph._p.addnext(new_p)
+    new_para = Paragraph(new_p, paragraph._parent)
+    if text:
+        new_para.add_run(text)
+    return new_para
+
+
+# -------------------------------------------------------
+# Helper: copy paragraph-level formatting and set cell text
+# -------------------------------------------------------
+def set_cell_text_preserve_style(src_cell, dest_cell, text):
+    """
+    Copy paragraph style and formatting from src_cell (usually the label cell)
+    to dest_cell, then set dest_cell's text to `text` without destroying layout.
+    """
+    # Ensure both cells have at least one paragraph
+    src_para = src_cell.paragraphs[0] if src_cell.paragraphs else src_cell.add_paragraph()
+    dest_para = dest_cell.paragraphs[0] if dest_cell.paragraphs else dest_cell.add_paragraph()
+
+    # Copy paragraph style (if any)
+    try:
+        dest_para.style = src_para.style
+    except Exception:
+        # ignore if style can't be copied
+        pass
+
+    # Copy paragraph-level alignment and spacing / indents
+    try:
+        dest_para.alignment = src_para.alignment
+    except Exception:
+        pass
+
+    try:
+        dest_para.paragraph_format.left_indent = src_para.paragraph_format.left_indent
+        dest_para.paragraph_format.right_indent = src_para.paragraph_format.right_indent
+        dest_para.paragraph_format.first_line_indent = src_para.paragraph_format.first_line_indent
+        dest_para.paragraph_format.space_before = src_para.paragraph_format.space_before
+        dest_para.paragraph_format.space_after = src_para.paragraph_format.space_after
+        dest_para.paragraph_format.line_spacing = src_para.paragraph_format.line_spacing
+    except Exception:
+        pass
+
+    # Copy cell vertical alignment
+    try:
+        dest_cell.vertical_alignment = src_cell.vertical_alignment
+    except Exception:
+        # fallback: do nothing
+        pass
+
+    # Clear existing runs in dest_para (without touching paragraph object)
+    for run in list(dest_para.runs):
+        run.text = ""
+
+    # Add the new text as a single run
+    new_run = dest_para.add_run(text)
+
+    # Optionally, copy font size from src first run if available (best-effort)
+    try:
+        if src_para.runs:
+            src_run = src_para.runs[0]
+            if src_run.font.size:
+                new_run.font.size = src_run.font.size
+            if src_run.font.name:
+                new_run.font.name = src_run.font.name
+    except Exception:
+        pass
+
+
+# -------------------------------------------------------
+# Placeholder LLM text generator
+# -------------------------------------------------------
+def generate_section_text(instructions: str) -> str:
+    return f"[GENERATED SECTION TEXT]\n{instructions[:500]}..."
+
+
+# -------------------------------------------------------
+# Main: fill FLB template
+# -------------------------------------------------------
+def fill_flb_document(template_path: str, output_path: str, user_inputs: dict, cover_keys: list = ["Projekt", "Objektadresse", "Ansprechpartner"]):
+    doc = Document(template_path)
+
+    # -------------------------------------------------------
+    # STEP 1 — Fill cover sheet table fields (copy formatting)
+    # -------------------------------------------------------
+
+    # Try to find the table which contains the labels
+    # We'll scan all tables and try to match keys in left column
+    for table in doc.tables:
+        for row in table.rows:
+            if len(row.cells) < 2:
+                continue
+
+            # normalize key (remove colon and whitespace)
+            left_text = row.cells[0].text.strip().replace(":", "").strip()
+
+            if left_text in cover_keys and left_text in user_inputs:
+                set_cell_text_preserve_style(row.cells[0], row.cells[1], user_inputs[left_text])
+
+    # -------------------------------------------------------
+    # STEP 2 — Detect sections by Heading 2
+    # -------------------------------------------------------
+    paragraphs = doc.paragraphs
+    sections = []
+    current_section = None
+
+    for para in paragraphs:
+        # Guard: some documents might have style names localized; ensure exact match to your template
+        if para.style.name == "Heading 2":
+            if current_section:
+                sections.append(current_section)
+            current_section = {
+                "title_para": para,
+                "instruction_paras": []
+            }
+        else:
+            if current_section:
+                current_section["instruction_paras"].append(para)
+
+    if current_section:
+        sections.append(current_section)
+
+    # -------------------------------------------------------
+    # STEP 3 — Generate and insert section texts
+    # -------------------------------------------------------
+    for section in sections:
+        instructions = "\n".join(p.text for p in section["instruction_paras"]).strip()
+        print(instructions)
+        generated = generate_section_text(instructions)
+
+        # Clear original instruction paragraphs
+        for p in section["instruction_paras"]:
+            p.text = ""
+
+        # Insert generated text after heading
+        insert_paragraph_after(section["title_para"], generated)
+
+    # -------------------------------------------------------
+    # STEP 4 — Save output (template untouched)
+    # -------------------------------------------------------
+    doc.save(output_path)
+    print(f"Created document: {output_path}")
+
+if __name__ == "__main__":
+    fill_flb_document(template_path="/home/alican/Downloads/FLB Repowering_Vorlage.docx", output_path="output/test.docx", user_inputs={
+        "Projekt": "Test Projekt",
+        "Objektadresse": "Test Adresse",
+        "Ansprechpartner": "Test Ansprechpartner"
+    })
