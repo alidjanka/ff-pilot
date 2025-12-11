@@ -1,6 +1,10 @@
 from RAG.base_rag import RAGBase
 from openai import OpenAI
+from agents import set_default_openai_key, set_tracing_export_api_key, Agent, FileSearchTool, Runner, trace
+from pydantic import BaseModel
 
+from prompts.prompts import create_prompt
+from prompts.prompts_v2 import create_prompt_v2
 from pathlib import Path
 from typing import List, Iterator
 import os
@@ -8,12 +12,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+set_default_openai_key(os.getenv("OPENAI_API_KEY"))
+set_tracing_export_api_key(os.getenv("OPENAI_API_KEY"))
+
+class Section(BaseModel):
+    title: str
+    content: str
+
+class UpdatedDocument(BaseModel):
+    content: str
+
 class OpenAIRAG(RAGBase):
 
     def __init__(self, collection_name):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.collection_name = collection_name
         self.model = "gpt-4.1"
+        self.vector_store_id = self.create_or_retrieve_vector_store() # might fail
         
     def create_or_retrieve_vector_store(self):
         stores = self.client.vector_stores.list()
@@ -31,6 +46,13 @@ class OpenAIRAG(RAGBase):
         else:
             self.vector_store = existing_store
             return existing_store.id
+
+    def list_files(self):
+        return self.client.vector_stores.files.list(vector_store_id=self.vector_store_id)
+
+    def retrieve_filename(self, file_id):   
+        file_obj = self.client.files.retrieve(file_id)
+        return file_obj.filename
 
     def ingest_file(self, file_path):
         if file_path.suffix.lower() == ".pdf":
@@ -122,5 +144,87 @@ class OpenAIRAG(RAGBase):
                 break  # stop after the first assistant message
 
         return answer_text, file_names
+
+    async def generate_section(self, prompt):
+        file_search_agent = Agent(
+                name="File searcher",
+                instructions="You are a document generation agent. You write sections of an FLB document in German only based on the information in the vector store.",
+                output_type=Section,
+                tools=[
+                    FileSearchTool(
+                        max_num_results=5,
+                        vector_store_ids=[self.vector_store.id],
+                        include_search_results=True,
+                    )
+                ],
+            )  
+
+        result = await Runner.run(file_search_agent, prompt)
+        return result.final_output
+
+    def build_context(self, sections: List[Section]) -> str:
+        if not sections:
+            return ""
+
+        context = "Dies sind die bisher erstellten Dokumentabschnitte:\n\n"
+        for sec in sections:
+            context += f"### {sec.title}\n{sec.content}\n\n"
+        return context
+
+    def build_prompt_with_context(self, section_description: str, previous_sections: List[Section]) -> str:
+        context_text = self.build_context(previous_sections) # based on context maybe a different prompt here
+        prompt = create_prompt(section_description)
+        return f"{context_text}\n\nJetzt schreibe den nächsten Abschnitt:\n{prompt}"
+
+
+    async def generate_document(self, section_descriptions: List[str]) -> List[Section]:
+        """
+        Generate a full document, where each section is aware of all previously
+        generated sections.
+        """
+        sections = []
+
+        for p in section_descriptions:
+            contextual_prompt = self.build_prompt_with_context(p, sections)
+            section: Section = await self.generate_section(contextual_prompt)
+            sections.append(section)
+
+        return sections
+
+    async def build_document_text(self, prompts: List[str]) -> str:
+        sections = await self.generate_document(prompts)
+
+        full_doc = ""
+        for sec in sections:
+            full_doc += f"# {sec.title}\n\n{sec.content}\n\n"
+
+        return full_doc
+
+    async def add_section(self, section_description: str, full_doc: str):
+        prompt = create_prompt_v2(section_description)
+        contextual_prompt = f"Hier ist das vollständige Dokument:{full_doc}\n\nJetzt schreibe einen neuen Abschnitt:\n{prompt}"
+        section: Section = await self.generate_section(contextual_prompt)
+        #full_doc += '\n\n' + section.title + '\n\n' + section.content
+        return section
+
+    async def update_document(self, prompt: str, full_doc: str):
+        document_update_agent = Agent(
+                name="Document Updater",
+                instructions="You are a document generation agent. Based on the provided document and user prompt, you update the document. Keep the structure same only change the content based on user query. Return the updated document in German.",
+                output_type=UpdatedDocument,
+                tools=[
+                    FileSearchTool(
+                        max_num_results=4,
+                        vector_store_ids=[self.vector_store.id],
+                        include_search_results=True,
+                    )
+                ],
+            )  
+
+        result = await Runner.run(document_update_agent, prompt)
+        return result.final_output        
+
+        
+        
 
 
