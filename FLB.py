@@ -53,11 +53,11 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # ------------------- Layout -------------------
-st.image("assets/logo.png", width=900)
+st.image("assets/logo.png", width=800)
 #st.title("Mogli - FF Pilot")
 
 # Two columns for split screen
-left_col, right_col = st.columns([2, 1])  # bigger left side
+left_col, right_col = st.columns([1, 1]) # bigger right side
 
 
 # ------------------- LEFT COLUMN: DOCUMENT GENERATOR -------------------
@@ -69,7 +69,7 @@ with left_col:
 
     if st.button("📄 Dokument mit Vorlage generieren"):     
         #st.session_state.generated_doc = asyncio.run(generate_document(Sections))
-        st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path="assets/FLB_Repowering_Vorlage.docx", output_path="output/test.docx", user_inputs={
+        st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path="assets/FLB_Repowering_Vorlage_FULL.docx", user_inputs={
             "Projekt": projekt,
             "Objektadresse": objektadresse,
             "Ansprechpartner": ansprechpartner
