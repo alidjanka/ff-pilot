@@ -3,6 +3,8 @@ from docx.oxml import OxmlElement
 from docx.text.paragraph import Paragraph
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 from docx.shared import Pt
+from io import BytesIO
+from RAG.openai_rag import OpenAIRAG
 
 
 # -------------------------------------------------------
@@ -16,6 +18,12 @@ def insert_paragraph_after(paragraph, text=""):
         new_para.add_run(text)
     return new_para
 
+def is_page_break(para):
+    for run in para.runs:
+        for br in run._element.findall(".//w:br", run._element.nsmap):
+            if br.get("{urn:schemas-microsoft-com:office:word}type") == "page":
+                return True
+    return False
 
 # -------------------------------------------------------
 # Helper: copy paragraph-level formatting and set cell text
@@ -81,14 +89,14 @@ def set_cell_text_preserve_style(src_cell, dest_cell, text):
 # -------------------------------------------------------
 # Placeholder LLM text generator
 # -------------------------------------------------------
-def generate_section_text(instructions: str) -> str:
+async def generate_section_text(instructions: str) -> str:
     return f"[GENERATED SECTION TEXT]\n{instructions[:500]}..."
 
 
 # -------------------------------------------------------
 # Main: fill FLB template
 # -------------------------------------------------------
-def fill_flb_document(template_path: str, output_path: str, user_inputs: dict, cover_keys: list = ["Projekt", "Objektadresse", "Ansprechpartner"]):
+async def fill_flb_document(template_path: str, output_path: str, user_inputs: dict, cover_keys: list = ["Projekt", "Objektadresse", "Ansprechpartner"]):
     doc = Document(template_path)
 
     # -------------------------------------------------------
@@ -134,23 +142,32 @@ def fill_flb_document(template_path: str, output_path: str, user_inputs: dict, c
     # -------------------------------------------------------
     # STEP 3 — Generate and insert section texts
     # -------------------------------------------------------
+    rag = OpenAIRAG(collection_name="ff-pilot")
+    generated_sections = []
     for section in sections:
         instructions = "\n".join(p.text for p in section["instruction_paras"]).strip()
         print(instructions)
-        generated = generate_section_text(instructions)
-
+        #generated = generate_section_text(instructions)
+        contextual_prompt = rag.build_prompt_with_context(instructions, generated_sections)
+        generated_section = await rag.generate_section(contextual_prompt)
+        generated_sections.append(generated_section)
         # Clear original instruction paragraphs
         for p in section["instruction_paras"]:
             p.text = ""
 
         # Insert generated text after heading
-        insert_paragraph_after(section["title_para"], generated)
+        insert_paragraph_after(section["title_para"], generated_section.content)
 
     # -------------------------------------------------------
     # STEP 4 — Save output (template untouched)
     # -------------------------------------------------------
-    doc.save(output_path)
-    print(f"Created document: {output_path}")
+    #doc.save(output_path)
+    #print(f"Created document: {output_path}")
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    return buffer.getvalue()
 
 if __name__ == "__main__":
     fill_flb_document(template_path="/home/alican/Downloads/FLB Repowering_Vorlage.docx", output_path="output/test.docx", user_inputs={

@@ -173,7 +173,7 @@ class OpenAIRAG(RAGBase):
 
     def build_prompt_with_context(self, section_description: str, previous_sections: List[Section]) -> str:
         context_text = self.build_context(previous_sections) # based on context maybe a different prompt here
-        prompt = create_prompt(section_description)
+        prompt = create_prompt_v2(section_description)
         return f"{context_text}\n\nJetzt schreibe den nächsten Abschnitt:\n{prompt}"
 
 

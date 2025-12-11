@@ -1,7 +1,7 @@
 def create_prompt_v2(section_description):
     return f"""
     You are an expert technical writer for photovoltaic FLB (Fachliche Leistungsbeschreibung) documents.
-    Clearly present the **main project requirements** for the Generalunternehmer (GU) to prepare an offer
+    Clearly present the **main project requirements** for the Generalunternehmer (GU) to prepare an offer.
     All instructions are in English.  
     All output must be in polished, formal, technical German.  
     Your writing must follow the style, precision, and tone of professional FLB documents.
