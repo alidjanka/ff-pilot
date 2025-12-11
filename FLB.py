@@ -8,21 +8,11 @@ import datetime
 import asyncio
 
 from prompts.prompts import Sections
+from utils.document import fill_flb_document
 
 async def generate_document(sections):
     rag = OpenAIRAG(collection_name="ff-pilot")
     full_doc = await rag.build_document_text(sections)
-
-    metadata = f"""---
-    title: "FLB Dokument"
-    date: "{datetime.date.today()}"
-    ---
-
-    """
-
-    full_doc_with_metadata = metadata + full_doc
-    #with open('output/doc.md', "w", encoding="utf-8") as f:
-    #    f.write(full_doc_with_metadata)
     return full_doc
 
 def ask(query):
@@ -63,7 +53,8 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # ------------------- Layout -------------------
-st.title("Mogli - FF Pilot")
+st.image("assets/logo.png", width=900)
+#st.title("Mogli - FF Pilot")
 
 # Two columns for split screen
 left_col, right_col = st.columns([2, 1])  # bigger left side
@@ -72,20 +63,28 @@ left_col, right_col = st.columns([2, 1])  # bigger left side
 # ------------------- LEFT COLUMN: DOCUMENT GENERATOR -------------------
 with left_col:
     st.header("📄 FLB Generator")
+    projekt = st.text_input("Projekt", "")
+    objektadresse = st.text_input("Objektadresse", "")
+    ansprechpartner = st.text_input("Ansprechpartner", "")
 
     if st.button("📄 Dokument mit Vorlage generieren"):     
-        st.session_state.generated_doc = asyncio.run(generate_document(Sections))
-        st.success("Dokument wurde generiert!")
+        #st.session_state.generated_doc = asyncio.run(generate_document(Sections))
+        st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path="assets/FLB_Repowering_Vorlage.docx", output_path="output/test.docx", user_inputs={
+            "Projekt": projekt,
+            "Objektadresse": objektadresse,
+            "Ansprechpartner": ansprechpartner
+        }))
+        st.success("Dokument bereit zum Download!")
 
     st.markdown("---")
 
     if st.session_state.generated_doc:
         st.subheader("📘 Generiertes Dokument")
-        st.markdown(st.session_state.generated_doc)
-        docx_bytes = md_to_docx(st.session_state.generated_doc)
+        #st.markdown(st.session_state.generated_doc)
+        #docx_bytes = md_to_docx(st.session_state.generated_doc)
         st.download_button(
         label="📥 Download",
-        data=docx_bytes,
+        data=st.session_state.generated_doc,
         file_name=f"FLB_Repowering_{datetime.date.today()}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )

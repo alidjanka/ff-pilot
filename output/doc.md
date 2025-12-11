@@ -3,7 +3,7 @@
     date: "2025-11-24"
     ---
 
-    # Projektbeschreibung und Leistungsumfang
+# Projektbeschreibung und Leistungsumfang
 
 Das vorliegende Projekt umfasst die Repowering-Maßnahmen einer bestehenden Photovoltaikanlage am Standort Molkereiweg 6, 39517 Lüderitz. Ziel des Vorhabens ist die Steigerung der Anlagenleistung und Effizienz durch Erneuerung wesentlicher Anlagenteile.
 
