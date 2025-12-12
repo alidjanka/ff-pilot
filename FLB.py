@@ -63,6 +63,9 @@ left_col, right_col = st.columns([1, 1]) # bigger right side
 # ------------------- LEFT COLUMN: DOCUMENT GENERATOR -------------------
 with left_col:
     st.header("📄 FLB Generator")
+    st.markdown(
+        "[📄 FBL_Vorlage öffnen](https://docs.google.com/document/d/1ltU4TZEr2efCWjo8a3_qDCfa3Z7eOFZMq4Aaeoe_3x8/edit?usp=sharing)"
+    )
     projekt = st.text_input("Projekt", "")
     objektadresse = st.text_input("Objektadresse", "")
     ansprechpartner = st.text_input("Ansprechpartner", "")
