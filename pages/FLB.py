@@ -10,13 +10,15 @@ import asyncio
 from prompts.prompts import Sections
 from utils.document import fill_flb_document
 
+st.session_state["projektbezeichnung"] = ""
+
 async def generate_document(sections):
-    rag = OpenAIRAG(collection_name="ff-pilot")
+    rag = OpenAIRAG(projekt_bezeichnung=st.session_state["projektbezeichnung"])
     full_doc = await rag.build_document_text(sections)
     return full_doc
 
 def ask(query):
-    rag = OpenAIRAG(collection_name="ff-pilot")
+    rag = OpenAIRAG(projekt_bezeichnung=st.session_state["projektbezeichnung"])
     answer, file_names = rag.query(query)
     return answer, file_names
 
@@ -66,9 +68,10 @@ with left_col:
     st.markdown(
         "[📄 FBL_Vorlage öffnen](https://docs.google.com/document/d/1ltU4TZEr2efCWjo8a3_qDCfa3Z7eOFZMq4Aaeoe_3x8/edit?usp=sharing)"
     )
-    projekt = st.text_input("Projekt", "")
-    objektadresse = st.text_input("Objektadresse", "")
-    ansprechpartner = st.text_input("Ansprechpartner", "")
+    st.write(f"Projekt {st.session_state["projektbezeichnung"]}")
+    projekt = st.session_state["projektbezeichnung"]
+    objektadresse = st.session_state["objektadresse"]
+    ansprechpartner = st.session_state["ansprechpartner"]
 
     if st.button("📄 Dokument mit Vorlage generieren"):     
         #st.session_state.generated_doc = asyncio.run(generate_document(Sections))

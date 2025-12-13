@@ -24,22 +24,25 @@ class UpdatedDocument(BaseModel):
 
 class OpenAIRAG(RAGBase):
 
-    def __init__(self, collection_name):
+    def __init__(self, projektbezeichnung="", objektadresse="", ansprechpartner=""):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.collection_name = collection_name
+        #self.collection_name = collection_name
+        self.projektbezeichnung = projektbezeichnung
+        self.objektadresse = objektadresse
+        self.ansprechpartner = ansprechpartner
         self.model = "gpt-4.1"
-        self.vector_store_id = self.create_or_retrieve_vector_store() # might fail
+        self.vector_store_id = self.create_or_retrieve_vector_store()
         
     def create_or_retrieve_vector_store(self):
         stores = self.client.vector_stores.list()
 
         existing_store = next(
-            (s for s in stores.data if s.name == self.collection_name),
+            (s for s in stores.data if s.name == self.projektbezeichnung),
             None
         )
         if existing_store is None:
             vector_store = self.client.vector_stores.create(
-                name=self.collection_name
+                name=self.projektbezeichnung
             )
             self.vector_store = vector_store
             return vector_store.id
@@ -108,6 +111,28 @@ class OpenAIRAG(RAGBase):
         self.client.vector_stores.file_batches.create_and_poll(
             vector_store_id=self.vector_store.id,
             file_ids=file_ids
+        )
+    ### This part is compatible with streamlit
+    def ingest_uploaded_file(self, uploaded_file):
+        """
+        Ingest a Streamlit UploadedFile and attach project metadata
+        """
+        file_obj = self.client.files.create(
+            file=uploaded_file,
+            purpose="assistants"
+        )
+
+        self.client.vector_stores.files.create(
+            vector_store_id=self.vector_store_id,
+            file_id=file_obj.id,
+        )
+
+        return file_obj.id
+
+    def search(self, query: str):
+        return self.client.vector_stores.search(
+            vector_store_id=self.vector_store_id,
+            query=query,
         )
 
     def query(self, query: str):
