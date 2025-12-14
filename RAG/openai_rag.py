@@ -49,6 +49,15 @@ class OpenAIRAG(RAGBase):
         else:
             self.vector_store = existing_store
             return existing_store.id
+    
+    def delete_vector_store(self):
+        try:
+            self.client.vector_stores.delete(
+                vector_store_id=self.vector_store_id
+            )
+            return True
+        except:
+            return False
 
     def list_files(self):
         return self.client.vector_stores.files.list(vector_store_id=self.vector_store_id)

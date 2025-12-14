@@ -1,13 +1,11 @@
 import streamlit as st
-from uuid import uuid4
 
 from RAG.openai_rag import OpenAIRAG
-from utils.projects import load_projects, save_projects
+from utils.projects import load_projects, save_projects, delete_project
 
 st.title("📁 Projekte")
 
 projects = load_projects()
-st.session_state["projektbezeichnung"] = ""
 
 # =====================================================
 # SECTION A — Bestehendes Projekt auswählen
@@ -23,7 +21,9 @@ else:
 
     selected_name = st.selectbox(
         "Projekt auswählen",
-        options=project_options.keys(),
+        options=list(project_options.keys()),
+        index=None,
+        placeholder="Bitte Projekt auswählen",
     )
 
     if selected_name:
@@ -39,10 +39,15 @@ else:
             objektadresse=meta["objektadresse"],
             ansprechpartner=meta["ansprechpartner"],
         )
+
+        st.session_state["project_id"] = project_id
         st.session_state["projektbezeichnung"] = meta["projektbezeichnung"]
         st.session_state["objektadresse"] = meta["objektadresse"]
         st.session_state["ansprechpartner"] = meta["ansprechpartner"]
 
+        # -------------------------------------------------
+        # Uploaded files
+        # -------------------------------------------------
         st.subheader("📄 Bereits hochgeladene Dokumente")
         try:
             files = rag.list_files()
@@ -55,6 +60,35 @@ else:
 
         except Exception as e:
             st.error(f"Error {e}")
+
+        # -------------------------------------------------
+        # Upload additional documents
+        # -------------------------------------------------
+        st.subheader("➕ Weitere Dokumente hochladen")
+
+        uploaded_files = st.file_uploader(
+            "Dokumente auswählen",
+            type=["pdf", "docx", "txt"],
+            accept_multiple_files=True,
+        )
+
+        if uploaded_files:
+            with st.spinner("Dokumente werden verarbeitet …"):
+                for file in uploaded_files:
+                    rag.ingest_uploaded_file(file)  
+
+        # -------------------------------------------------
+        # Delete project (stub)
+        # -------------------------------------------------
+        if st.button("🗑️ Projekt löschen", type="secondary"):
+            if rag.delete_vector_store():
+                delete_project(project_id)
+                st.success(f"Projekt {st.session_state['projektbezeichnung']} ist gelöscht.")
+                st.session_state["project_id"] = None
+                st.session_state["projektbezeichnung"] = None
+                st.session_state["objektadresse"] = None
+                st.session_state["ansprechpartner"] = None
+
 
 st.divider()
 
@@ -106,4 +140,4 @@ if st.button("🚀 Neues Projekt anlegen"):
         for file in uploaded_files:
             rag.ingest_uploaded_file(file)
 
-    st.success("✅ Projekt erfolgreich erstellt")
+    st.success("✅ Projekt erfolgreich erstellt und ausgewählt!")
