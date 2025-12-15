@@ -78,11 +78,12 @@ with left_col:
 
     if st.button("📄 Dokument mit Vorlage generieren", disabled=is_doc_generation_enabled):     
         #st.session_state.generated_doc = asyncio.run(generate_document(Sections))
-        st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path="assets/FLB_Repowering_Vorlage_FULL.docx", user_inputs={
-            "Projekt": projekt,
-            "Objektadresse": objektadresse,
-            "Ansprechpartner": ansprechpartner
-        }))
+        with st.spinner("Dokument wird generiert …"):
+            st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path="assets/FLB_Repowering_Vorlage_TEST.docx", user_inputs={
+                "Projekt": projekt,
+                "Objektadresse": objektadresse,
+                "Ansprechpartner": ansprechpartner
+            }))
         st.success("Dokument bereit zum Download!")
 
     st.markdown("---")

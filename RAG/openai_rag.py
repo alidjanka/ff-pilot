@@ -4,7 +4,7 @@ from agents import set_default_openai_key, set_tracing_export_api_key, Agent, Fi
 from pydantic import BaseModel
 
 from prompts.prompts import create_prompt
-from prompts.prompts_v2 import create_prompt_v2
+from prompts.prompts_v2 import create_prompt_v2, create_prompt_v3
 from pathlib import Path
 from typing import List, Iterator
 import os
@@ -121,7 +121,8 @@ class OpenAIRAG(RAGBase):
             vector_store_id=self.vector_store.id,
             file_ids=file_ids
         )
-    ### This part is compatible with streamlit
+        
+### This part is compatible with streamlit
     def ingest_uploaded_file(self, uploaded_file):
         """
         Ingest a Streamlit UploadedFile and attach project metadata
@@ -182,7 +183,7 @@ class OpenAIRAG(RAGBase):
     async def generate_section(self, prompt):
         file_search_agent = Agent(
                 name="File searcher",
-                instructions="You are a document generation agent. You write sections of an FLB document in German only based on the information in the vector store.",
+                instructions="You are a document generation agent.",
                 output_type=Section,
                 tools=[
                     FileSearchTool(
@@ -205,13 +206,15 @@ class OpenAIRAG(RAGBase):
             context += f"### {sec.title}\n{sec.content}\n\n"
         return context
 
-    def build_prompt_with_context(self, section_description: str, previous_sections: List[Section]) -> str:
+    def build_prompt_with_context(self, section_description: str, previous_sections: List[Section], projektbezeichnung: str) -> str:
         context_text = self.build_context(previous_sections) # based on context maybe a different prompt here
-        prompt = create_prompt_v2(section_description)
-        return f"{context_text}\n\nJetzt schreibe den nächsten Abschnitt:\n{prompt}"
+        prompt = create_prompt_v3(section_description, projektbezeichnung)
+        if len(context_text) == 0:
+            return prompt
+        else:
+            return f"{context_text}Jetzt schreibe den nächsten Abschnitt:\n{prompt}"
 
-
-    async def generate_document(self, section_descriptions: List[str]) -> List[Section]:
+    async def generate_document(self, section_descriptions: List[str], projektbezeichnung: str) -> List[Section]:
         """
         Generate a full document, where each section is aware of all previously
         generated sections.
@@ -219,7 +222,7 @@ class OpenAIRAG(RAGBase):
         sections = []
 
         for p in section_descriptions:
-            contextual_prompt = self.build_prompt_with_context(p, sections)
+            contextual_prompt = self.build_prompt_with_context(p, sections, projektbezeichnung)
             section: Section = await self.generate_section(contextual_prompt)
             sections.append(section)
 

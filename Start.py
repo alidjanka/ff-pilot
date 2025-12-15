@@ -125,19 +125,19 @@ if st.button("🚀 Neues Projekt anlegen"):
         "ansprechpartner": ansprechpartner,
         "project_id": project_id,
     }
-    save_projects(projects)
 
     rag = OpenAIRAG(
         projektbezeichnung=projektbezeichnung,
         objektadresse=objektadresse,
         ansprechpartner=ansprechpartner,
     )
-    st.session_state["projektbezeichnung"] = meta["projektbezeichnung"]
-    st.session_state["objektadresse"] = meta["objektadresse"]
-    st.session_state["ansprechpartner"] = meta["ansprechpartner"]
+    st.session_state["projektbezeichnung"] = projektbezeichnung
+    st.session_state["objektadresse"] = objektadresse
+    st.session_state["ansprechpartner"] = ansprechpartner
 
     with st.spinner("Dokumente werden verarbeitet …"):
         for file in uploaded_files:
             rag.ingest_uploaded_file(file)
+    save_projects(projects)
 
     st.success("✅ Projekt erfolgreich erstellt und ausgewählt!")
