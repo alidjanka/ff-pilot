@@ -20,7 +20,7 @@ def get_drive_service():
     writes them to a temporary file in /tmp, and builds the Drive service object.
     """
     try:
-        temp_file_path = "tmp/pilot-ff.json"
+        temp_file_path = "/tmp/pilot-ff.json"
         # 1. Load the secrets dictionary from the secrets.toml file
         service_account_info = {
             "type": st.secrets["google_drive"]["type"],
@@ -82,7 +82,7 @@ def download_file(service, file_id, file_name):
     Returns the full local path to the downloaded file.
     """
     # 1. Define the full local path in /tmp
-    local_path = os.path.join("tmp", file_name)
+    local_path = os.path.join("/tmp", file_name)
     
     print(f"Downloading {file_name} to {local_path}...")
     
