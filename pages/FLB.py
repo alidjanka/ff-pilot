@@ -9,6 +9,28 @@ import asyncio
 
 from prompts.prompts import Sections
 from utils.document import fill_flb_document
+from utils.file_system import get_drive_service, find_files_in_folder, download_file
+
+def set_configuration_files():
+    drive_service = get_drive_service()
+
+    if drive_service:
+        
+        extensions = ['.docx', '.xlsx']
+        files = find_files_in_folder(drive_service, extensions)
+        
+        if not files:
+            st.error(f"No files found with extensions {extensions} in the target folder.")
+        else:         
+            for file in files:
+                if ".docx" in file['name']:
+                    st.session_state["template_path"] = download_file(drive_service, file['id'], file['name'])
+                elif ".xlsx" in file['name']:
+                    st.session_state["masterliste_path"] = download_file(drive_service, file['id'], file['name'])
+
+if "template_path" not in st.session_state:
+    with st.spinner("Initialisieren …"):
+        set_configuration_files()
 
 async def generate_document(sections):
     rag = OpenAIRAG(projekt_bezeichnung=st.session_state["projektbezeichnung"])
