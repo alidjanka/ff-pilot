@@ -26,16 +26,17 @@ def set_configuration_files():
                         st.session_state["template_path"] = download_file(drive_service, file['id'], file['name'])
                     elif ".xlsx" in file['name']:
                         st.session_state["masterliste_path"] = download_file(drive_service, file['id'], file['name'])
-        return True
+        return files
     except:
-        return False
+        return None
 
 # =====================================================
 # SECTION A — Bestehendes Projekt auswählen
 # =====================================================
 st.header("📂 Bestehendes Projekt auswählen")
-if set_configuration_files():
-    st.write("Ok")
+r = set_configuration_files()
+if r is not None:
+    st.write(r)
 else:
     st.write("Config failed")
 
