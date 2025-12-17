@@ -21,6 +21,7 @@ def set_configuration_files():
                 st.error(f"No files found with extensions {extensions} in the target folder.")
             else:         
                 for file in files:
+                    st.write(file['name'])
                     if ".docx" in file['name']:
                         st.session_state["template_path"] = download_file(drive_service, file['id'], file['name'])
                     elif ".xlsx" in file['name']:
@@ -34,7 +35,7 @@ def set_configuration_files():
 # =====================================================
 st.header("📂 Bestehendes Projekt auswählen")
 if set_configuration_files():
-    st.write(f"Ok {st.session_state["template_path"]}")
+    st.write("Ok")
 else:
     st.write("Config failed")
 
