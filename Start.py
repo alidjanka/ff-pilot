@@ -4,34 +4,39 @@ from RAG.openai_rag import OpenAIRAG
 from utils.projects import load_projects, save_projects, delete_project
 from utils.file_system import get_drive_service, find_files_in_folder, download_file
 
-def set_configuration_files():
-    drive_service = get_drive_service()
-
-    if drive_service:
-        
-        extensions = ['.docx', '.xlsx']
-        files = find_files_in_folder(drive_service, extensions)
-        
-        if not files:
-            st.error(f"No files found with extensions {extensions} in the target folder.")
-        else:         
-            for file in files:
-                if ".docx" in file['name']:
-                    st.session_state["template_path"] = download_file(drive_service, file['id'], file['name'])
-                elif ".xlsx" in file['name']:
-                    st.session_state["masterliste_path"] = download_file(drive_service, file['id'], file['name'])
+st.title("📁 Projekte")
 
 projects = load_projects()
 
-if "template_path" not in st.session_state:
-    with st.spinner("Initialisieren …"):
-        set_configuration_files()
+def set_configuration_files():
+    try:
+        drive_service = get_drive_service()
 
-st.title("📁 Projekte")
+        if drive_service:
+            
+            extensions = ['.docx', '.xlsx']
+            files = find_files_in_folder(drive_service, extensions)
+            
+            if not files:
+                st.error(f"No files found with extensions {extensions} in the target folder.")
+            else:         
+                for file in files:
+                    if ".docx" in file['name']:
+                        st.session_state["template_path"] = download_file(drive_service, file['id'], file['name'])
+                    elif ".xlsx" in file['name']:
+                        st.session_state["masterliste_path"] = download_file(drive_service, file['id'], file['name'])
+        return True
+    except:
+        return False
+
 # =====================================================
 # SECTION A — Bestehendes Projekt auswählen
 # =====================================================
 st.header("📂 Bestehendes Projekt auswählen")
+if set_configuration_files():
+    st.write(f"Ok {st.session_state["template_path"]}")
+else:
+    st.write("Config failed")
 
 if not projects:
     st.info("Noch keine Projekte vorhanden.")
