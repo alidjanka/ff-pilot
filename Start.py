@@ -29,15 +29,14 @@ def set_configuration_files():
     except:
         return None
 
+if "template_path" not in st.session_state:
+    r = set_configuration_files()
+    if r is None:
+        st.write("Config failed")
 # =====================================================
 # SECTION A — Bestehendes Projekt auswählen
 # =====================================================
 st.header("📂 Bestehendes Projekt auswählen")
-r = set_configuration_files()
-if r is not None:
-    st.write(r)
-else:
-    st.write("Config failed")
 
 if not projects:
     st.info("Noch keine Projekte vorhanden.")

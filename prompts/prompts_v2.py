@@ -3,7 +3,7 @@ from utils.project_information import create_master_list,retrieve_project
 def create_prompt_v3(
     section_description,
     projektbezeichnung,
-    PATH="tmp/RPS Projekt- und Abrechnungsübersicht.xlsx"
+    PATH="/tmp/RPS Projekt- und Abrechnungsübersicht.xlsx"
 ):
     projects_json = create_master_list(PATH)
     project = retrieve_project(projektbezeichnung, projects_json)
