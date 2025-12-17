@@ -14,8 +14,8 @@ import streamlit as st
 
 load_dotenv()
 
-set_default_openai_key(os.getenv("OPENAI_API_KEY"))
-set_tracing_export_api_key(os.getenv("OPENAI_API_KEY"))
+set_default_openai_key(st.secrets["openai"]["OPENAI_API_KEY"])
+set_tracing_export_api_key(st.secrets["openai"]["OPENAI_API_KEY"])
 
 class Section(BaseModel):
     title: str
