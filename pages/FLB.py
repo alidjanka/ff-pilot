@@ -59,7 +59,6 @@ st.image("assets/logo.png", width=800)
 # Two columns for split screen
 left_col, right_col = st.columns([1, 1])
 
-
 # ------------------- LEFT COLUMN: DOCUMENT GENERATOR -------------------
 with left_col:
     st.header("📄 FLB Generator")
@@ -71,15 +70,15 @@ with left_col:
         projekt = st.session_state["projektbezeichnung"]
         objektadresse = st.session_state["objektadresse"]
         ansprechpartner = st.session_state["ansprechpartner"]
-        is_doc_generation_enabled = False
+        doc_generation_disabled = False
     else:
         st.write(f"Noch kein Projekt ausgewählt!")
-        is_doc_generation_enabled = True
+        doc_generation_disabled= True
 
-    if st.button("📄 Dokument mit Vorlage generieren", disabled=is_doc_generation_enabled):     
+    if st.button("📄 Dokument mit Vorlage generieren", disabled=doc_generation_disabled):     
         #st.session_state.generated_doc = asyncio.run(generate_document(Sections))
         with st.spinner("Dokument wird generiert …"):
-            st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path="assets/FLB_Repowering_Vorlage_TEST.docx", user_inputs={
+            st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path=st.session_state["template_path"], user_inputs={
                 "Projekt": projekt,
                 "Objektadresse": objektadresse,
                 "Ansprechpartner": ansprechpartner

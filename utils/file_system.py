@@ -1,6 +1,7 @@
 #
-import json
+import streamlit as st
 import os
+import json
 
 # Import Google API libraries
 from google.oauth2.service_account import Credentials
@@ -21,11 +22,23 @@ def get_drive_service():
     try:
         temp_file_path = "tmp/pilot-ff.json"
         # 1. Load the secrets dictionary from the secrets.toml file
-        #secrets = st.secrets["google_drive"]
+        service_account_info = {
+            "type": st.secrets["google_drive"]["type"],
+            "project_id": st.secrets["google_drive"]["project_id"],
+            "private_key_id": st.secrets["google_drive"]["private_key_id"],
+            "private_key": st.secrets["google_drive"]["private_key"].replace('\\n', '\n'),
+            "client_email": st.secrets["google_drive"]["client_email"],
+            "client_id": st.secrets["google_drive"]["client_id"],
+            "auth_uri": st.secrets["google_drive"]["auth_uri"],
+            "token_uri": st.secrets["google_drive"]["token_uri"],
+            "auth_provider_x509_cert_url": st.secrets["google_drive"]["auth_provider_x509_cert_url"],
+            "client_x509_cert_url": st.secrets["google_drive"]["client_x509_cert_url"],
+            "universe_domain": st.secrets["google_drive"]["universe_domain"]
+        }
 
         # 3. Write the secrets dictionary to the temporary JSON file
-        #with open(temp_file_path, "w") as f:
-        #    json.dump(secrets, f)
+        with open(temp_file_path, "w") as f:
+            json.dump(service_account_info, f)
 
         # 4. Authenticate using the temporary JSON file and the Drive read-only scope
         creds = Credentials.from_service_account_file(
@@ -44,7 +57,7 @@ def get_drive_service():
         print(f"Authentication failed. Check FOLDER_ID, Service Account sharing, and secrets.toml configuration. Error: {e}")
         return None
 
-def find_files_in_folder(service, folder_id, file_extensions):
+def find_files_in_folder(service, file_extensions, folder_id=FOLDER_ID):
     """Searches for files with specific extensions within a given folder ID."""
     
     ext_query = " or ".join([f"name contains '{ext}'" for ext in file_extensions])

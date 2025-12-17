@@ -10,6 +10,8 @@ from typing import List, Iterator
 import os
 from dotenv import load_dotenv
 
+import streamlit as st
+
 load_dotenv()
 
 set_default_openai_key(os.getenv("OPENAI_API_KEY"))
@@ -25,8 +27,8 @@ class UpdatedDocument(BaseModel):
 class OpenAIRAG(RAGBase):
 
     def __init__(self, projektbezeichnung="", objektadresse="", ansprechpartner=""):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        #self.collection_name = collection_name
+        #self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.client = OpenAI(api_key=st.secrets["openai"]["OPENAI_API_KEY"])
         self.projektbezeichnung = projektbezeichnung
         self.objektadresse = objektadresse
         self.ansprechpartner = ansprechpartner
@@ -52,12 +54,43 @@ class OpenAIRAG(RAGBase):
     
     def delete_vector_store(self):
         try:
+            # 1. List files in the vector store
+            files = self.client.vector_stores.files.list(
+                vector_store_id=self.vector_store_id
+            )
+
+            # 2. Delete each file
+            for f in files.data:
+                # Remove file from vector store
+                self.client.vector_stores.files.delete(
+                    vector_store_id=self.vector_store_id,
+                    file_id=f.id
+                )
+
+                # OPTIONAL: also delete the file globally
+                self.client.files.delete(f.id)
+
+            # 3. Delete the vector store
             self.client.vector_stores.delete(
                 vector_store_id=self.vector_store_id
             )
+
             return True
-        except:
+
+        except Exception as e:
+            print(f"Cleanup failed: {e}")
             return False
+
+    def delete_file(self, file_id: str):
+        # Remove file from vector store
+        self.client.vector_stores.files.delete(
+            vector_store_id=self.vector_store_id,
+            file_id=file_id
+        )
+
+        # OPTIONAL: permanently delete file
+        self.client.files.delete(file_id)
+
 
     def list_files(self):
         return self.client.vector_stores.files.list(vector_store_id=self.vector_store_id)

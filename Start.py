@@ -2,11 +2,32 @@ import streamlit as st
 
 from RAG.openai_rag import OpenAIRAG
 from utils.projects import load_projects, save_projects, delete_project
+from utils.file_system import get_drive_service, find_files_in_folder, download_file
 
-st.title("📁 Projekte")
+def set_configuration_files():
+    drive_service = get_drive_service()
+
+    if drive_service:
+        
+        extensions = ['.docx', '.xlsx']
+        files = find_files_in_folder(drive_service, extensions)
+        
+        if not files:
+            st.error(f"No files found with extensions {extensions} in the target folder.")
+        else:         
+            for file in files:
+                if ".docx" in file['name']:
+                    st.session_state["template_path"] = download_file(drive_service, file['id'], file['name'])
+                elif ".xlsx" in file['name']:
+                    st.session_state["masterliste_path"] = download_file(drive_service, file['id'], file['name'])
 
 projects = load_projects()
 
+if "template_path" not in st.session_state:
+    with st.spinner("Initialisieren …"):
+        set_configuration_files()
+
+st.title("📁 Projekte")
 # =====================================================
 # SECTION A — Bestehendes Projekt auswählen
 # =====================================================
@@ -49,6 +70,7 @@ else:
         # Uploaded files
         # -------------------------------------------------
         st.subheader("📄 Bereits hochgeladene Dokumente")
+
         try:
             files = rag.list_files()
 
@@ -56,11 +78,25 @@ else:
                 st.info("Keine Datei im System!")
             else:
                 for f in files.data:
-                    st.write(f"- **{rag.retrieve_filename(f.id)}**")
+                    col1, col2 = st.columns([4, 1])
+
+                    filename = rag.retrieve_filename(f.id)
+
+                    with col1:
+                        st.write(f"📄 **{filename}**")
+
+                    with col2:
+                        if st.button(
+                            "🗑️",
+                            key=f"delete_file_{f.id}",
+                            help="Datei löschen",
+                        ):
+                            rag.delete_file(f.id)
+                            st.success(f"{filename} gelöscht")
+                            st.rerun()
 
         except Exception as e:
-            st.error(f"Error {e}")
-
+            st.error(f"Error: {e}")
         # -------------------------------------------------
         # Upload additional documents
         # -------------------------------------------------
