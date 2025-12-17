@@ -11,12 +11,12 @@ from prompts.prompts import Sections
 from utils.document import fill_flb_document
 
 async def generate_document(sections):
-    rag = OpenAIRAG(collection_name="ff-pilot")
+    rag = OpenAIRAG(projekt_bezeichnung=st.session_state["projektbezeichnung"])
     full_doc = await rag.build_document_text(sections)
     return full_doc
 
 def ask(query):
-    rag = OpenAIRAG(collection_name="ff-pilot")
+    rag = OpenAIRAG(projekt_bezeichnung=st.session_state["projektbezeichnung"])
     answer, file_names = rag.query(query)
     return answer, file_names
 
@@ -57,26 +57,32 @@ st.image("assets/logo.png", width=800)
 #st.title("Mogli - FF Pilot")
 
 # Two columns for split screen
-left_col, right_col = st.columns([1, 1]) # bigger right side
-
+left_col, right_col = st.columns([1, 1])
 
 # ------------------- LEFT COLUMN: DOCUMENT GENERATOR -------------------
 with left_col:
     st.header("📄 FLB Generator")
     st.markdown(
-        "[📄 FBL_Vorlage öffnen](https://docs.google.com/document/d/1ltU4TZEr2efCWjo8a3_qDCfa3Z7eOFZMq4Aaeoe_3x8/edit?usp=sharing)"
+        "[📄 FLB_Vorlage öffnen](https://docs.google.com/document/d/1ltU4TZEr2efCWjo8a3_qDCfa3Z7eOFZMq4Aaeoe_3x8/edit?usp=sharing)"
     )
-    projekt = st.text_input("Projekt", "")
-    objektadresse = st.text_input("Objektadresse", "")
-    ansprechpartner = st.text_input("Ansprechpartner", "")
+    if st.session_state.get('projektbezeichnung'):
+        st.write(f"Projekt {st.session_state['projektbezeichnung']}")
+        projekt = st.session_state["projektbezeichnung"]
+        objektadresse = st.session_state["objektadresse"]
+        ansprechpartner = st.session_state["ansprechpartner"]
+        doc_generation_disabled = False
+    else:
+        st.write(f"Noch kein Projekt ausgewählt!")
+        doc_generation_disabled= True
 
-    if st.button("📄 Dokument mit Vorlage generieren"):     
+    if st.button("📄 Dokument mit Vorlage generieren", disabled=doc_generation_disabled):     
         #st.session_state.generated_doc = asyncio.run(generate_document(Sections))
-        st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path="assets/FLB_Repowering_Vorlage_FULL.docx", user_inputs={
-            "Projekt": projekt,
-            "Objektadresse": objektadresse,
-            "Ansprechpartner": ansprechpartner
-        }))
+        with st.spinner("Dokument wird generiert …"):
+            st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path=st.session_state["template_path"], user_inputs={
+                "Projekt": projekt,
+                "Objektadresse": objektadresse,
+                "Ansprechpartner": ansprechpartner
+            }))
         st.success("Dokument bereit zum Download!")
 
     st.markdown("---")

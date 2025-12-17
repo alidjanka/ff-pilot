@@ -4,11 +4,13 @@ from agents import set_default_openai_key, set_tracing_export_api_key, Agent, Fi
 from pydantic import BaseModel
 
 from prompts.prompts import create_prompt
-from prompts.prompts_v2 import create_prompt_v2
+from prompts.prompts_v2 import create_prompt_v2, create_prompt_v3
 from pathlib import Path
 from typing import List, Iterator
 import os
 from dotenv import load_dotenv
+
+import streamlit as st
 
 load_dotenv()
 
@@ -24,28 +26,71 @@ class UpdatedDocument(BaseModel):
 
 class OpenAIRAG(RAGBase):
 
-    def __init__(self, collection_name):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.collection_name = collection_name
+    def __init__(self, projektbezeichnung="", objektadresse="", ansprechpartner=""):
+        #self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.client = OpenAI(api_key=st.secrets["openai"]["OPENAI_API_KEY"])
+        self.projektbezeichnung = projektbezeichnung
+        self.objektadresse = objektadresse
+        self.ansprechpartner = ansprechpartner
         self.model = "gpt-4.1"
-        self.vector_store_id = self.create_or_retrieve_vector_store() # might fail
+        self.vector_store_id = self.create_or_retrieve_vector_store()
         
     def create_or_retrieve_vector_store(self):
         stores = self.client.vector_stores.list()
 
         existing_store = next(
-            (s for s in stores.data if s.name == self.collection_name),
+            (s for s in stores.data if s.name == self.projektbezeichnung),
             None
         )
         if existing_store is None:
             vector_store = self.client.vector_stores.create(
-                name=self.collection_name
+                name=self.projektbezeichnung
             )
             self.vector_store = vector_store
             return vector_store.id
         else:
             self.vector_store = existing_store
             return existing_store.id
+    
+    def delete_vector_store(self):
+        try:
+            # 1. List files in the vector store
+            files = self.client.vector_stores.files.list(
+                vector_store_id=self.vector_store_id
+            )
+
+            # 2. Delete each file
+            for f in files.data:
+                # Remove file from vector store
+                self.client.vector_stores.files.delete(
+                    vector_store_id=self.vector_store_id,
+                    file_id=f.id
+                )
+
+                # OPTIONAL: also delete the file globally
+                self.client.files.delete(f.id)
+
+            # 3. Delete the vector store
+            self.client.vector_stores.delete(
+                vector_store_id=self.vector_store_id
+            )
+
+            return True
+
+        except Exception as e:
+            print(f"Cleanup failed: {e}")
+            return False
+
+    def delete_file(self, file_id: str):
+        # Remove file from vector store
+        self.client.vector_stores.files.delete(
+            vector_store_id=self.vector_store_id,
+            file_id=file_id
+        )
+
+        # OPTIONAL: permanently delete file
+        self.client.files.delete(file_id)
+
 
     def list_files(self):
         return self.client.vector_stores.files.list(vector_store_id=self.vector_store_id)
@@ -109,6 +154,29 @@ class OpenAIRAG(RAGBase):
             vector_store_id=self.vector_store.id,
             file_ids=file_ids
         )
+        
+### This part is compatible with streamlit
+    def ingest_uploaded_file(self, uploaded_file):
+        """
+        Ingest a Streamlit UploadedFile and attach project metadata
+        """
+        file_obj = self.client.files.create(
+            file=uploaded_file,
+            purpose="assistants"
+        )
+
+        self.client.vector_stores.files.create(
+            vector_store_id=self.vector_store_id,
+            file_id=file_obj.id,
+        )
+
+        return file_obj.id
+
+    def search(self, query: str):
+        return self.client.vector_stores.search(
+            vector_store_id=self.vector_store_id,
+            query=query,
+        )
 
     def query(self, query: str):
         response = self.client.responses.create(
@@ -148,7 +216,7 @@ class OpenAIRAG(RAGBase):
     async def generate_section(self, prompt):
         file_search_agent = Agent(
                 name="File searcher",
-                instructions="You are a document generation agent. You write sections of an FLB document in German only based on the information in the vector store.",
+                instructions="You are a document generation agent.",
                 output_type=Section,
                 tools=[
                     FileSearchTool(
@@ -171,13 +239,15 @@ class OpenAIRAG(RAGBase):
             context += f"### {sec.title}\n{sec.content}\n\n"
         return context
 
-    def build_prompt_with_context(self, section_description: str, previous_sections: List[Section]) -> str:
+    def build_prompt_with_context(self, section_description: str, previous_sections: List[Section], projektbezeichnung: str) -> str:
         context_text = self.build_context(previous_sections) # based on context maybe a different prompt here
-        prompt = create_prompt_v2(section_description)
-        return f"{context_text}\n\nJetzt schreibe den nächsten Abschnitt:\n{prompt}"
+        prompt = create_prompt_v3(section_description, projektbezeichnung)
+        if len(context_text) == 0:
+            return prompt
+        else:
+            return f"{context_text}Jetzt schreibe den nächsten Abschnitt:\n{prompt}"
 
-
-    async def generate_document(self, section_descriptions: List[str]) -> List[Section]:
+    async def generate_document(self, section_descriptions: List[str], projektbezeichnung: str) -> List[Section]:
         """
         Generate a full document, where each section is aware of all previously
         generated sections.
@@ -185,7 +255,7 @@ class OpenAIRAG(RAGBase):
         sections = []
 
         for p in section_descriptions:
-            contextual_prompt = self.build_prompt_with_context(p, sections)
+            contextual_prompt = self.build_prompt_with_context(p, sections, projektbezeichnung)
             section: Section = await self.generate_section(contextual_prompt)
             sections.append(section)
 

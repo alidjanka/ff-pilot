@@ -5,7 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "google-api-python-client>=2.187.0",
+    "google-auth-httplib2>=0.3.0",
+    "google-auth-oauthlib>=1.2.3",
     "openai-agents>=0.6.1",
+    "openpyxl>=3.1.5",
     "python-docx>=1.2.0",
     "streamlit>=1.52.1",
 ]

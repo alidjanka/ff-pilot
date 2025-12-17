@@ -10,5 +10,9 @@ wheels/
 .venv
 .env
 Projekte
+assets
+data
 output
 output/doc.md
+tmp
+.streamlit

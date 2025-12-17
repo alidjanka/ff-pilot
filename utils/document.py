@@ -39,6 +39,16 @@ def is_page_break(para):
                 return True
     return False
 
+def insert_text_block_after(last_para, text):
+    for line in text.split("\n"):
+        if line.strip():
+            last_para = insert_paragraph_after(last_para, line.strip())
+
+def delete_paragraph(paragraph):
+    p = paragraph._element
+    p.getparent().remove(p)
+    paragraph._p = paragraph._element = None
+
 # -------------------------------------------------------
 # Helper: copy paragraph-level formatting and set cell text
 # -------------------------------------------------------
@@ -100,12 +110,6 @@ def set_cell_text_preserve_style(src_cell, dest_cell, text):
         pass
 
 
-# -------------------------------------------------------
-# Placeholder LLM text generator
-# -------------------------------------------------------
-async def generate_section_text(instructions: str) -> str:
-    return f"[GENERATED SECTION TEXT]\n{instructions[:500]}..."
-
 
 # -------------------------------------------------------
 # Main: fill FLB template
@@ -156,23 +160,24 @@ async def fill_flb_document(template_path: str, user_inputs: dict, cover_keys: l
     # -------------------------------------------------------
     # STEP 3 — Generate and insert section texts
     # -------------------------------------------------------
-    rag = OpenAIRAG(collection_name="ff-pilot")
+    rag = OpenAIRAG(
+            projektbezeichnung=user_inputs["Projekt"],
+            objektadresse=user_inputs["Objektadresse"],
+            ansprechpartner=user_inputs["Ansprechpartner"],
+        )
     generated_sections = []
     for section in sections:
         instructions = "\n".join(p.text for p in section["instruction_paras"]).strip()
         instructions_clean = normalize_instructions(instructions)
         print(instructions_clean)
-        #generated = generate_section_text(instructions)
-        contextual_prompt = rag.build_prompt_with_context(instructions_clean, generated_sections)
+        contextual_prompt = rag.build_prompt_with_context(instructions_clean, generated_sections, user_inputs["Projekt"])
         generated_section = await rag.generate_section(contextual_prompt)
         generated_sections.append(generated_section)
-        # Clear original instruction paragraphs
+        # Completely remove all instruction paragraphs (including bullets)
         for p in section["instruction_paras"]:
-            p.text = ""
+            delete_paragraph(p)
 
-        # Insert generated text after heading
-        insert_paragraph_after(section["title_para"], generated_section.content)
-
+        insert_text_block_after(section["title_para"], generated_section.content)
     # -------------------------------------------------------
     # STEP 4 — Save output (template untouched)
     # -------------------------------------------------------
@@ -183,112 +188,3 @@ async def fill_flb_document(template_path: str, user_inputs: dict, cover_keys: l
     buffer.seek(0)
 
     return buffer.getvalue()
-
-
-async def fill_flb_document_2(
-    cover_template_path: str,
-    instructions_template_path: str,
-    user_inputs: dict,
-    cover_keys: list = ["Projekt", "Objektadresse", "Ansprechpartner"]
-):
-    # -------------------------------------------------------
-    # STEP 1 — Fill cover sheet document
-    # -------------------------------------------------------
-    cover_doc = Document(cover_template_path)
-    
-    for table in cover_doc.tables:
-        for row in table.rows:
-            if len(row.cells) < 2:
-                continue
-
-            left_text = row.cells[0].text.strip().replace(":", "").strip()
-
-            if left_text in cover_keys and left_text in user_inputs:
-                set_cell_text_preserve_style(row.cells[0], row.cells[1], user_inputs[left_text])
-
-    # -------------------------------------------------------
-    # STEP 2 — Process instructions document
-    # -------------------------------------------------------
-    instructions_doc = Document(instructions_template_path)
-    
-    # Remove all content before the first Heading 2 (i.e., the cover sheet)
-    first_heading_index = None
-    for i, para in enumerate(instructions_doc.paragraphs):
-        if para.style.name == "Heading 2":
-            first_heading_index = i
-            break
-    
-    # Delete paragraphs before first heading
-    if first_heading_index is not None:
-        for i in range(first_heading_index - 1, -1, -1):
-            p = instructions_doc.paragraphs[i]._element
-            p.getparent().remove(p)
-    
-    # Also remove tables that are part of the cover (typically the first table)
-    if len(instructions_doc.tables) > 0:
-        tbl = instructions_doc.tables[0]._element
-        tbl.getparent().remove(tbl)
-    
-    # Now process remaining paragraphs
-    paragraphs = instructions_doc.paragraphs
-    sections = []
-    current_section = None
-
-    for para in paragraphs:
-        if para.style.name == "Heading 2":
-            if current_section:
-                sections.append(current_section)
-            current_section = {
-                "title_para": para,
-                "instruction_paras": []
-            }
-        else:
-            if current_section:
-                current_section["instruction_paras"].append(para)
-
-    if current_section:
-        sections.append(current_section)
-
-    # -------------------------------------------------------
-    # STEP 3 — Generate and insert section texts
-    # -------------------------------------------------------
-    rag = OpenAIRAG(collection_name="ff-pilot")
-    generated_sections = []
-    
-    for section in sections:
-        instructions = "\n".join(p.text for p in section["instruction_paras"]).strip()
-        instructions_clean = normalize_instructions(instructions)
-        print(instructions_clean)
-        
-        contextual_prompt = rag.build_prompt_with_context(instructions_clean, generated_sections)
-        generated_section = await rag.generate_section(contextual_prompt)
-        generated_sections.append(generated_section)
-        
-        for p in section["instruction_paras"]:
-            p.text = ""
-
-        insert_paragraph_after(section["title_para"], generated_section.content)
-
-    # -------------------------------------------------------
-    # STEP 4 — Merge documents
-    # -------------------------------------------------------
-    cover_doc.add_page_break()
-    
-    for element in instructions_doc.element.body:
-        cover_doc.element.body.append(element)
-
-    # -------------------------------------------------------
-    # STEP 5 — Save output
-    # -------------------------------------------------------
-    buffer = BytesIO()
-    cover_doc.save(buffer)
-    buffer.seek(0)
-
-    return buffer.getvalue()
-
-if __name__ == "__main__":
-    fill_flb_document(template_path="/home/alican/Downloads/FLB Repowering_Vorlage.docx", output_path="output/test.docx", user_inputs={
-        "Projekt": "Test Projekt",
-        "Objektadresse": "Test Adresse",
-        "Ansprechpartner": "Test Ansprechpartner"
-    })
