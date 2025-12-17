@@ -1,0 +1,110 @@
+#
+import json
+import os
+
+# Import Google API libraries
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
+
+
+# --- CONFIGURATION ---
+# IMPORTANT: REPLACE THIS with the ID of your Google Drive folder
+FOLDER_ID = "1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc" 
+# ---------------------
+
+def get_drive_service():
+    """
+    Authenticates using the Service Account credentials from Streamlit secrets,
+    writes them to a temporary file in /tmp, and builds the Drive service object.
+    """
+    try:
+        temp_file_path = "tmp/pilot-ff.json"
+        # 1. Load the secrets dictionary from the secrets.toml file
+        #secrets = st.secrets["google_drive"]
+
+        # 3. Write the secrets dictionary to the temporary JSON file
+        #with open(temp_file_path, "w") as f:
+        #    json.dump(secrets, f)
+
+        # 4. Authenticate using the temporary JSON file and the Drive read-only scope
+        creds = Credentials.from_service_account_file(
+            temp_file_path, 
+            scopes=['https://www.googleapis.com/auth/drive.readonly'] 
+        )
+        
+        # 5. Clean up the temporary file immediately (SECURITY BEST PRACTICE)
+        #os.remove(temp_file_path)
+
+        # 6. Build and return the authorized Drive service
+        service = build('drive', 'v3', credentials=creds)
+        return service
+        
+    except Exception as e:
+        print(f"Authentication failed. Check FOLDER_ID, Service Account sharing, and secrets.toml configuration. Error: {e}")
+        return None
+
+def find_files_in_folder(service, folder_id, file_extensions):
+    """Searches for files with specific extensions within a given folder ID."""
+    
+    ext_query = " or ".join([f"name contains '{ext}'" for ext in file_extensions])
+    
+    query = (
+        f"'{folder_id}' in parents "
+        f"and ( {ext_query} ) "
+        f"and trashed = false"
+    )
+
+    results = service.files().list(
+        q=query, 
+        pageSize=10, 
+        fields="nextPageToken, files(id, name, mimeType)"
+    ).execute()
+    
+    return results.get('files', [])
+
+def download_file(service, file_id, file_name):
+    """
+    Downloads a file from Google Drive and saves it to the /tmp directory.
+    Returns the full local path to the downloaded file.
+    """
+    # 1. Define the full local path in /tmp
+    local_path = os.path.join("tmp", file_name)
+    
+    print(f"Downloading {file_name} to {local_path}...")
+    
+    # 2. Prepare the request
+    request = service.files().get_media(fileId=file_id)
+    
+    # 3. Open the local file in write-binary mode
+    with open(local_path, "wb") as f:
+        downloader = MediaIoBaseDownload(f, request)
+        done = False
+        
+        # 4. Execute the download in chunks
+        while done is False:
+            status, done = downloader.next_chunk()
+    return local_path
+
+# --- STREAMLIT APP MAIN FUNCTION ---
+def main():
+    
+    drive_service = get_drive_service()
+
+    if drive_service:
+        
+        extensions = ['.docx', '.xlsx']
+        files = find_files_in_folder(drive_service, FOLDER_ID, extensions)
+        
+        if not files:
+            print(f"No files found with extensions {extensions} in the target folder.")
+        else:
+            print("Found Files")
+            
+            for file in files:
+                file_name = file['name']
+                downloaded_file_path = download_file(drive_service, file['id'], file_name)
+                print(downloaded_file_path)
+
+if __name__ == "__main__":
+    main()
