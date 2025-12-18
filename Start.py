@@ -166,7 +166,7 @@ with st.form("new_project_form", clear_on_submit=True):
     submitted = st.form_submit_button("🚀 Neues Projekt anlegen")
 
 if submitted:
-    if len(st.session_state["projects"]) > MAX_PROJEKTE:
+    if len(st.session_state["projects"]) >= MAX_PROJEKTE:
         st.warning(
             f"Maximal erlaubte Anzahl von Projekten ist {MAX_PROJEKTE}. "
             "Lösche ein altes Projekt und versuch erneut."
