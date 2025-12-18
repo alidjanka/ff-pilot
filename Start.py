@@ -83,21 +83,10 @@ else:
             objektadresse=st.session_state["objektadresse"],
             ansprechpartner=st.session_state["ansprechpartner"],
         )
-
-        #rag = OpenAIRAG(
-        #    projektbezeichnung=meta["projektbezeichnung"],
-        #    objektadresse=meta["objektadresse"],
-        #    ansprechpartner=meta["ansprechpartner"],
-        #)
-
-        #st.session_state["project_id"] = project_id
-        #st.session_state["projektbezeichnung"] = meta["projektbezeichnung"]
-        #st.session_state["objektadresse"] = meta["objektadresse"]
-        #st.session_state["ansprechpartner"] = meta["ansprechpartner"]
-
-        # -------------------------------------------------
-        # Uploaded files
-        # -------------------------------------------------
+        st.success(f'Projekt {st.session_state["projektbezeichnung"]} ist ausgewählt!')
+    # -------------------------------------------------
+    # Uploaded files
+    # -------------------------------------------------
         st.subheader("📄 Bereits hochgeladene Dokumente")
 
         try:
@@ -122,7 +111,6 @@ else:
                         ):
                             rag.delete_file(f.id)
                             st.session_state["files"] = rag.list_files()
-                            st.success(f"{filename} gelöscht")
                             st.rerun()
 
         except Exception as e:
@@ -196,7 +184,6 @@ if submitted:
         # sleep until all files are registered, i observed a slight delay
         time.sleep(2)
         st.session_state["projects"] = rag.list_project_names()
-
-    st.success("✅ Projekt erfolgreich erstellt!")
+        st.success("✅ Projekt erfolgreich erstellt!")
     time.sleep(1)
     st.rerun()

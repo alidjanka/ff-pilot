@@ -99,12 +99,23 @@ class OpenAIRAG(RAGBase):
                             file_id=f.id
                         )
                     except Exception as file_err:
-                        print(f"Warning: failed to delete file {f.id}: {file_err}")
+                        time.sleep(delay)
+                        try:
+                            self.client.vector_stores.files.delete(
+                                vector_store_id=self.vector_store_id,
+                                file_id=f.id
+                            )
+                        except Exception as file_err:
+                            print(f"Warning: failed to delete file {f.id}: {file_err}")
                     try:
                         self.client.files.delete(f.id)
                     except Exception as file_err:
                         print(f"Warning: failed to delete global file {f.id}: {file_err}")
-
+                        time.sleep(delay)
+                        try:
+                            self.client.files.delete(f.id)
+                        except Exception as file_err:
+                            print(f"Warning: failed to delete global file {f.id}: {file_err}")
                 # 3. Delete the vector store
                 self.client.vector_stores.delete(
                     vector_store_id=self.vector_store_id
@@ -123,15 +134,37 @@ class OpenAIRAG(RAGBase):
                     return False
 
 
-    def delete_file(self, file_id: str):
-        # Remove file from vector store
-        self.client.vector_stores.files.delete(
-            vector_store_id=self.vector_store_id,
-            file_id=file_id
-        )
+    def delete_file(self, file_id: str, max_retries: int = 3, delay: float = 2):
+        """
+        Deletes a file from the vector store and optionally permanently, with retries.
+        
+        Args:
+            file_id (str): ID of the file to delete.
+            max_retries (int): Maximum number of retry attempts.
+            delay (float): Delay in seconds between retries.
+        """
+        attempt = 0
+        while attempt < max_retries:
+            try:
+                # Remove file from vector store
+                self.client.vector_stores.files.delete(
+                    vector_store_id=self.vector_store_id,
+                    file_id=file_id
+                )
 
-        # OPTIONAL: permanently delete file
-        self.client.files.delete(file_id)
+                # OPTIONAL: permanently delete file
+                self.client.files.delete(file_id)
+                
+                #return True  # Success
+
+            except Exception as e:
+                attempt += 1
+                print(f"Attempt {attempt}/{max_retries} failed for file {file_id}: {e}")
+                if attempt < max_retries:
+                    time.sleep(delay)
+                else:
+                    print(f"Failed to delete file {file_id} after {max_retries} attempts.")
+                    #return False
 
 
     def list_files(self):
