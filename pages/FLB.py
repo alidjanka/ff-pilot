@@ -10,6 +10,8 @@ import asyncio
 from prompts.prompts import Sections
 from utils.document import fill_flb_document
 
+MAX_PROJEKTE=30
+
 async def generate_document(sections):
     rag = OpenAIRAG(projekt_bezeichnung=st.session_state["projektbezeichnung"])
     full_doc = await rag.build_document_text(sections)
@@ -65,7 +67,10 @@ with left_col:
     st.markdown(
         "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
     )
-    if st.session_state.get('projektbezeichnung'):
+    if len(st.session_state["projects"]) > MAX_PROJEKTE:
+        st.warning(f"Maximal erluabte Anzahl von Projekten ist {MAX_PROJEKTE}. Lösche ein altes Projekt und versuch erneut.")
+        doc_generation_disabled= True
+    elif st.session_state.get('projektbezeichnung'):
         st.subheader(f"Ausgewähltes Projekt: {st.session_state['projektbezeichnung']}")
         doc_generation_disabled = False
     else:
