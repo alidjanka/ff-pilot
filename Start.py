@@ -5,6 +5,8 @@ from RAG.openai_rag import OpenAIRAG
 #from utils.projects import load_projects, save_projects, delete_project
 from utils.file_system import get_drive_service, find_files_in_folder, download_file
 
+MAX_PROJEKTE=30
+
 st.title("📁 Projekte")
 st.markdown(
         "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
@@ -164,6 +166,13 @@ with st.form("new_project_form", clear_on_submit=True):
     submitted = st.form_submit_button("🚀 Neues Projekt anlegen")
 
 if submitted:
+    if len(st.session_state["projects"]) > MAX_PROJEKTE:
+        st.warning(
+            f"Maximal erlaubte Anzahl von Projekten ist {MAX_PROJEKTE}. "
+            "Lösche ein altes Projekt und versuch erneut."
+        )
+        st.stop()
+
     if not new_project_name or not new_files:
         st.error("Projektbezeichnung und mindestens eine Datei sind erforderlich.")
         st.stop()
