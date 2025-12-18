@@ -7,6 +7,7 @@ from prompts.prompts import create_prompt
 from prompts.prompts_v2 import create_prompt_v2, create_prompt_v3
 from pathlib import Path
 from typing import List, Iterator
+import time
 import os
 from dotenv import load_dotenv
 
@@ -33,7 +34,26 @@ class OpenAIRAG(RAGBase):
         self.objektadresse = objektadresse
         self.ansprechpartner = ansprechpartner
         self.model = "gpt-4.1"
-        self.vector_store_id = self.create_or_retrieve_vector_store()
+        if len(projektbezeichnung)>1:
+            self.vector_store_id = self.create_or_retrieve_vector_store()
+
+    def list_project_names(self):
+        vector_stores = []
+        projects = {}
+        cursor = None
+
+        while True:
+            response = self.client.vector_stores.list(after=cursor, limit=100)
+            vector_stores.extend(response.data)
+
+            if not response.has_more:
+                break
+            cursor = response.data[-1].id
+
+        for vs in vector_stores:
+            print(vs.name, vs.id)
+            projects[vs.name] = vs.id
+        return projects
         
     def create_or_retrieve_vector_store(self):
         stores = self.client.vector_stores.list()
@@ -52,34 +72,56 @@ class OpenAIRAG(RAGBase):
             self.vector_store = existing_store
             return existing_store.id
     
-    def delete_vector_store(self):
-        try:
-            # 1. List files in the vector store
-            files = self.client.vector_stores.files.list(
-                vector_store_id=self.vector_store_id
-            )
-
-            # 2. Delete each file
-            for f in files.data:
-                # Remove file from vector store
-                self.client.vector_stores.files.delete(
-                    vector_store_id=self.vector_store_id,
-                    file_id=f.id
+    def delete_vector_store(self, max_retries=3, delay=2):
+        """
+        Deletes the vector store along with its files, retrying if any step fails.
+        
+        Args:
+            max_retries (int): Maximum number of retry attempts.
+            delay (float): Delay in seconds between retries.
+        
+        Returns:
+            bool: True if deletion succeeded, False otherwise.
+        """
+        attempt = 0
+        while attempt < max_retries:
+            try:
+                # 1. List files in the vector store
+                files = self.client.vector_stores.files.list(
+                    vector_store_id=self.vector_store_id
                 )
 
-                # OPTIONAL: also delete the file globally
-                self.client.files.delete(f.id)
+                # 2. Delete each file
+                for f in files.data:
+                    try:
+                        self.client.vector_stores.files.delete(
+                            vector_store_id=self.vector_store_id,
+                            file_id=f.id
+                        )
+                    except Exception as file_err:
+                        print(f"Warning: failed to delete file {f.id}: {file_err}")
+                    try:
+                        self.client.files.delete(f.id)
+                    except Exception as file_err:
+                        print(f"Warning: failed to delete global file {f.id}: {file_err}")
 
-            # 3. Delete the vector store
-            self.client.vector_stores.delete(
-                vector_store_id=self.vector_store_id
-            )
+                # 3. Delete the vector store
+                self.client.vector_stores.delete(
+                    vector_store_id=self.vector_store_id
+                )
 
-            return True
+                # If we reach here, everything succeeded
+                return True
 
-        except Exception as e:
-            print(f"Cleanup failed: {e}")
-            return False
+            except Exception as e:
+                attempt += 1
+                print(f"Attempt {attempt}/{max_retries} failed: {e}")
+                if attempt < max_retries:
+                    time.sleep(delay)
+                else:
+                    print("All retry attempts failed.")
+                    return False
+
 
     def delete_file(self, file_id: str):
         # Remove file from vector store

@@ -1,12 +1,15 @@
 import streamlit as st
+import time
 
 from RAG.openai_rag import OpenAIRAG
-from utils.projects import load_projects, save_projects, delete_project
+#from utils.projects import load_projects, save_projects, delete_project
 from utils.file_system import get_drive_service, find_files_in_folder, download_file
 
 st.title("📁 Projekte")
-
-projects = load_projects()
+st.markdown(
+        "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
+    )
+#projects = load_projects()
 
 def set_configuration_files():
     try:
@@ -33,43 +36,64 @@ if "template_path" not in st.session_state:
     r = set_configuration_files()
     if r is None:
         st.write("Config failed")
+
+init_rag = OpenAIRAG()
+st.session_state["projects"] = init_rag.list_project_names()
 # =====================================================
 # SECTION A — Bestehendes Projekt auswählen
 # =====================================================
 st.header("📂 Bestehendes Projekt auswählen")
 
-if not projects:
+if not st.session_state["projects"]:
     st.info("Noch keine Projekte vorhanden.")
 else:
-    project_options = {
-        v["projektbezeichnung"]: k for k, v in projects.items()
-    }
+    #project_options = {
+    #    v["projektbezeichnung"]: k for k, v in st.session_state["projects"].items()
+    #}
 
+    #selected_name = st.selectbox(
+    #    "Projekt auswählen",
+     #   options=list(project_options.keys()),
+     #   index=None,
+      #  placeholder="Bitte Projekt auswählen",
+    #)
     selected_name = st.selectbox(
         "Projekt auswählen",
-        options=list(project_options.keys()),
+        options=list(st.session_state["projects"].keys()),
         index=None,
         placeholder="Bitte Projekt auswählen",
     )
 
     if selected_name:
-        project_id = project_options[selected_name]
-        meta = projects[project_id]
+        #project_id = project_options[selected_name]
+        project_id = st.session_state["projects"][selected_name]
+        #meta = projects[project_id]
 
-        st.subheader("📌 Projektdetails")
-        st.write(f"**Objektadresse:** {meta['objektadresse']}")
-        st.write(f"**Ansprechpartner:** {meta['ansprechpartner']}")
-
-        rag = OpenAIRAG(
-            projektbezeichnung=meta["projektbezeichnung"],
-            objektadresse=meta["objektadresse"],
-            ansprechpartner=meta["ansprechpartner"],
-        )
+        #st.subheader("📌 Projektdetails")
+        #st.write(f"**Objektadresse:** {meta['objektadresse']}")
+        #st.write(f"**Ansprechpartner:** {meta['ansprechpartner']}")
 
         st.session_state["project_id"] = project_id
-        st.session_state["projektbezeichnung"] = meta["projektbezeichnung"]
-        st.session_state["objektadresse"] = meta["objektadresse"]
-        st.session_state["ansprechpartner"] = meta["ansprechpartner"]
+        st.session_state["projektbezeichnung"] = selected_name
+        st.session_state["objektadresse"] = ""
+        st.session_state["ansprechpartner"] = ""
+
+        rag = OpenAIRAG(
+            projektbezeichnung=st.session_state["projektbezeichnung"],
+            objektadresse=st.session_state["objektadresse"],
+            ansprechpartner=st.session_state["ansprechpartner"],
+        )
+
+        #rag = OpenAIRAG(
+        #    projektbezeichnung=meta["projektbezeichnung"],
+        #    objektadresse=meta["objektadresse"],
+        #    ansprechpartner=meta["ansprechpartner"],
+        #)
+
+        #st.session_state["project_id"] = project_id
+        #st.session_state["projektbezeichnung"] = meta["projektbezeichnung"]
+        #st.session_state["objektadresse"] = meta["objektadresse"]
+        #st.session_state["ansprechpartner"] = meta["ansprechpartner"]
 
         # -------------------------------------------------
         # Uploaded files
@@ -77,12 +101,12 @@ else:
         st.subheader("📄 Bereits hochgeladene Dokumente")
 
         try:
-            files = rag.list_files()
+            st.session_state["files"] = rag.list_files()
 
-            if len(files.data) == 0:
+            if len(st.session_state["files"].data) == 0:
                 st.info("Keine Datei im System!")
             else:
-                for f in files.data:
+                for f in st.session_state["files"].data:
                     col1, col2 = st.columns([4, 1])
 
                     filename = rag.retrieve_filename(f.id)
@@ -97,6 +121,7 @@ else:
                             help="Datei löschen",
                         ):
                             rag.delete_file(f.id)
+                            st.session_state["files"] = rag.list_files()
                             st.success(f"{filename} gelöscht")
                             st.rerun()
 
@@ -109,12 +134,12 @@ else:
 
         uploaded_files = st.file_uploader(
             "Dokumente auswählen",
-            type=["pdf", "docx", "txt"],
+            type=["pdf"],
             accept_multiple_files=True,
         )
 
         if uploaded_files:
-            with st.spinner("Dokumente werden verarbeitet …"):
+            with st.spinner("Dokumente werden hochgeladen …"):
                 for file in uploaded_files:
                     rag.ingest_uploaded_file(file)  
 
@@ -122,63 +147,56 @@ else:
         # Delete project (stub)
         # -------------------------------------------------
         if st.button("🗑️ Projekt löschen", type="secondary"):
-            if rag.delete_vector_store():
-                delete_project(project_id)
-                st.success(f"Projekt {st.session_state['projektbezeichnung']} ist gelöscht.")
-                st.session_state["project_id"] = None
-                st.session_state["projektbezeichnung"] = None
-                st.session_state["objektadresse"] = None
-                st.session_state["ansprechpartner"] = None
+            with st.spinner("Projekt wird gelöscht …"):
+                if rag.delete_vector_store():
+                    #delete_project(project_id)
+                    st.success(f"Projekt {st.session_state['projektbezeichnung']} ist gelöscht.")
+                    st.session_state["project_id"] = None
+                    st.session_state["projektbezeichnung"] = None
+                    st.session_state["objektadresse"] = None
+                    st.session_state["ansprechpartner"] = None
+                    st.session_state["projects"] = rag.list_project_names()
 
 
 st.divider()
 
 # =====================================================
-# SECTION B — Neues Projekt erstellen
+# SECTION B — Neues Projekt (FORM!)
 # =====================================================
 st.header("➕ Neues Projekt erstellen")
 
-projektbezeichnung = st.text_input("Projektbezeichnung")
-objektadresse = st.text_input("Objektadresse")
-ansprechpartner = st.text_input("Ansprechpartner")
+with st.form("new_project_form", clear_on_submit=True):
+    new_project_name = st.text_input("Projektbezeichnung")
+    new_files = st.file_uploader(
+        "Dokumente hochladen (PDF)",
+        type=["pdf"],
+        accept_multiple_files=True,
+    )
 
-uploaded_files = st.file_uploader(
-    "Dokumente hochladen (PDF)",
-    type=["pdf"],
-    accept_multiple_files=True,
-)
+    submitted = st.form_submit_button("🚀 Neues Projekt anlegen")
 
-if st.button("🚀 Neues Projekt anlegen"):
-    if not projektbezeichnung or not uploaded_files:
+if submitted:
+    if not new_project_name or not new_files:
         st.error("Projektbezeichnung und mindestens eine Datei sind erforderlich.")
         st.stop()
 
-    project_id = projektbezeichnung.lower().replace(" ", "_")
-
-    if project_id in projects:
+    if new_project_name in st.session_state["projects"]:
         st.error("Projekt existiert bereits.")
         st.stop()
 
-    # Save project metadata locally
-    projects[project_id] = {
-        "projektbezeichnung": projektbezeichnung,
-        "objektadresse": objektadresse,
-        "ansprechpartner": ansprechpartner,
-        "project_id": project_id,
-    }
-
     rag = OpenAIRAG(
-        projektbezeichnung=projektbezeichnung,
-        objektadresse=objektadresse,
-        ansprechpartner=ansprechpartner,
+        projektbezeichnung=new_project_name,
+        objektadresse="",
+        ansprechpartner="",
     )
-    st.session_state["projektbezeichnung"] = projektbezeichnung
-    st.session_state["objektadresse"] = objektadresse
-    st.session_state["ansprechpartner"] = ansprechpartner
 
-    with st.spinner("Dokumente werden verarbeitet …"):
-        for file in uploaded_files:
-            rag.ingest_uploaded_file(file)
-    save_projects(projects)
+    with st.spinner("Dokumente werden hochgeladen …"):
+        for f in new_files:
+            rag.ingest_uploaded_file(f)
+        # sleep until all files are registered, i observed a slight delay
+        time.sleep(2)
+        st.session_state["projects"] = rag.list_project_names()
 
-    st.success("✅ Projekt erfolgreich erstellt und ausgewählt!")
+    st.success("✅ Projekt erfolgreich erstellt!")
+    time.sleep(1)
+    st.rerun()
