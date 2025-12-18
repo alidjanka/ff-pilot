@@ -33,7 +33,7 @@ class OpenAIRAG(RAGBase):
         self.projektbezeichnung = projektbezeichnung
         self.objektadresse = objektadresse
         self.ansprechpartner = ansprechpartner
-        self.model = "gpt-4.1"
+        self.model = "gpt-5-mini"
         if len(projektbezeichnung)>1:
             self.vector_store_id = self.create_or_retrieve_vector_store()
 
