@@ -4,6 +4,7 @@ import datetime
 import asyncio
 
 from prompts.prompts import Sections
+from utils.project_information import create_master_list,retrieve_project
 
 def create_vector_store():
     rag = OpenAIRAG(collection_name="ff-pilot")
@@ -65,12 +66,9 @@ async def add_section(new_section_list):
         print("Document could not be found.")
 
 if __name__ == "__main__":
-    new_section = [
-        '''
-        Abschnitt: Arbeitsschutz
+    projects = create_master_list("Projekte/RPS Projekt- und Abrechnungsübersicht.xlsx")
+    print(len(projects))  # should be > 1
 
-        Gemäß BG Bau-Vorschriften und Sicherheitsvorkehrungen während der Installation
-        '''
-    ]
-    #asyncio.run(generate_document(Sections))
-    asyncio.run(add_section(new_section))
+    for p in projects:
+        if p["Bezeichnung & Projektordner"]=="test2":
+            print(p)
