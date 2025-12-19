@@ -37,10 +37,10 @@ def create_master_list(path) -> List[Dict[str, Any]]:
 
 def retrieve_project(projektbezeichnung, projects_json, project_name_field="Bezeichnung & Projektordner"):
     for project in projects_json:
-        if projektbezeichnung==project[project_name_field]:
+        if project.get(project_name_field) == projektbezeichnung:
             return json.dumps(project, indent=2, ensure_ascii=False, default=str)
-        else:
-            raise ValueError(f"Projekt '{projektbezeichnung}' ist nicht in der Masterliste!")
+    # Only reached if no project matched
+    raise ValueError(f"Projekt '{projektbezeichnung}' ist nicht in der Masterliste!")
 
 
 if __name__ == "__main__":
