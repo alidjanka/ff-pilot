@@ -5,7 +5,9 @@ from io import BytesIO
 from RAG.openai_rag import OpenAIRAG
 
 import datetime
+import os
 import asyncio
+import time
 
 from prompts.prompts import Sections
 from utils.document import fill_flb_document
@@ -70,11 +72,16 @@ with left_col:
     )
     if st.button("Aktualisiere Vorlage & Masterliste"):
         with st.spinner("Projektinformationen werden aktualisiert …"):
+            try:
+                os.remove(st.session_state["masterliste_path"])
+                os.remove(st.session_state["template_path"])
+            except:
+                pass
+            time.sleep(3)
             r = set_configuration_files()
             if r is None:
                 st.error("Aktualisierung fehlgeschlagen")
             else:
-                print(st.session_state["masterliste_path"])
                 st.success("Aktualisiert!")
     if len(st.session_state["projects"]) > MAX_PROJEKTE:
         st.warning(f"Maximal erluabte Anzahl von Projekten ist {MAX_PROJEKTE}. Lösche ein altes Projekt und versuch erneut.")
@@ -97,7 +104,7 @@ with left_col:
                 }))
                 st.success("Dokument bereit zum Download!")
             except:
-                st.warning("Aktualisiere Vorlage & Masterliste")
+                st.warning("Es kann einige Zeit dauern, bis Änderungen in der Vorlage und der Masterliste wirksam werden. Bitte warten Sie einen Moment und aktualisieren Sie die Vorlage & Masterliste erneut.")
 
     st.markdown("---")
 
