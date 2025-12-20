@@ -9,6 +9,7 @@ import asyncio
 
 from prompts.prompts import Sections
 from utils.document import fill_flb_document
+from utils.file_system import set_configuration_files
 
 MAX_PROJEKTE=30
 
@@ -17,8 +18,8 @@ async def generate_document(sections):
     full_doc = await rag.build_document_text(sections)
     return full_doc
 
-def ask(query):
-    rag = OpenAIRAG(projekt_bezeichnung=st.session_state["projektbezeichnung"])
+def ask(query, projekt_bezeichnung):
+    rag = OpenAIRAG(projekt_bezeichnung)
     answer, file_names = rag.query(query)
     return answer, file_names
 
@@ -67,6 +68,14 @@ with left_col:
     st.markdown(
         "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
     )
+    if st.button("Aktualisiere Vorlage & Masterliste"):
+        with st.spinner("Projektinformationen werden aktualisiert …"):
+            r = set_configuration_files()
+            if r is None:
+                st.error("Aktualisierung fehlgeschlagen")
+            else:
+                print(st.session_state["masterliste_path"])
+                st.success("Aktualisiert!")
     if len(st.session_state["projects"]) > MAX_PROJEKTE:
         st.warning(f"Maximal erluabte Anzahl von Projekten ist {MAX_PROJEKTE}. Lösche ein altes Projekt und versuch erneut.")
         doc_generation_disabled= True
@@ -80,12 +89,15 @@ with left_col:
     if st.button("📄 FLB generieren", disabled=doc_generation_disabled):     
         #st.session_state.generated_doc = asyncio.run(generate_document(Sections))
         with st.spinner("FLB wird generiert …"):
-            st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path=st.session_state["template_path"], user_inputs={
-                "Projekt":  st.session_state["projektbezeichnung"],
-                "Objektadresse": st.session_state["objektadresse"],
-                "Ansprechpartner": st.session_state["ansprechpartner"]
-            }))
-        st.success("Dokument bereit zum Download!")
+            try:
+                st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path=st.session_state["template_path"], user_inputs={
+                    "Projekt":  st.session_state["projektbezeichnung"],
+                    "Objektadresse": st.session_state["objektadresse"],
+                    "Ansprechpartner": st.session_state["ansprechpartner"]
+                }))
+                st.success("Dokument bereit zum Download!")
+            except:
+                st.warning("Aktualisiere Vorlage & Masterliste")
 
     st.markdown("---")
 
@@ -106,29 +118,42 @@ with left_col:
 with right_col:
     st.header("💬 Chat mit deinen Unterlagen")
 
-    # Show chat history
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
-            st.write(msg["content"])
+            st.markdown(msg["content"])
 
-    # Chat input at bottom
     user_input = st.chat_input("Nachricht eingeben...")
 
     if user_input:
-        # Append user message
         st.session_state.chat_history.append({
             "role": "user",
             "content": user_input
         })
 
-        answer, file_names = ask(user_input)
-
         st.session_state.chat_history.append({
             "role": "assistant",
-            "content": f'''
-            Gemäß den folgenden Dateien: {file_names}: \n\n 
-            {answer}
-            '''
+            "content": "_Antwort wird generiert…_"
         })
+
+        st.rerun()
+
+    if st.session_state.chat_history and st.session_state.chat_history[-1]["content"] == "_Antwort wird generiert…_":
+        with st.chat_message("assistant"):
+            
+            answer, file_names = ask(
+                st.session_state.chat_history[-2]["content"],
+                st.session_state["projektbezeichnung"]
+            )
+
+        st.session_state.chat_history[-1] = {
+            "role": "assistant",
+            "content": f"""{answer}
+
+            Gemäß den folgenden Dateien: {', '.join(set(file_names))}
+            """
+        }
 
         st.rerun()
