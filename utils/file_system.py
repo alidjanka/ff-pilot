@@ -97,25 +97,22 @@ def download_file(service, file_id, file_name):
             status, done = downloader.next_chunk()
     return local_path
 
-# --- STREAMLIT APP MAIN FUNCTION ---
-def main():
-    
-    drive_service = get_drive_service()
+def set_configuration_files(extensions=['.docx', '.xlsx']):
+    try:
+        drive_service = get_drive_service()
 
-    if drive_service:
-        
-        extensions = ['.docx', '.xlsx']
-        files = find_files_in_folder(drive_service, FOLDER_ID, extensions)
-        
-        if not files:
-            print(f"No files found with extensions {extensions} in the target folder.")
-        else:
-            print("Found Files")
+        if drive_service:
             
-            for file in files:
-                file_name = file['name']
-                downloaded_file_path = download_file(drive_service, file['id'], file_name)
-                print(downloaded_file_path)
-
-if __name__ == "__main__":
-    main()
+            files = find_files_in_folder(drive_service, extensions)
+            
+            if not files:
+                st.error(f"No files found with extensions {extensions} in the target folder.")
+            else:         
+                for file in files:
+                    if ".docx" in file['name']:
+                        st.session_state["template_path"] = download_file(drive_service, file['id'], file['name'])
+                    elif ".xlsx" in file['name']:
+                        st.session_state["masterliste_path"] = download_file(drive_service, file['id'], file['name'])
+        return files
+    except:
+        return None

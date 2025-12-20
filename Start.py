@@ -3,7 +3,7 @@ import time
 
 from RAG.openai_rag import OpenAIRAG
 #from utils.projects import load_projects, save_projects, delete_project
-from utils.file_system import get_drive_service, find_files_in_folder, download_file
+from utils.file_system import set_configuration_files
 
 MAX_PROJEKTE=30
 
@@ -11,33 +11,11 @@ st.title("📁 Projekte")
 st.markdown(
         "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
     )
-#projects = load_projects()
-
-def set_configuration_files():
-    try:
-        drive_service = get_drive_service()
-
-        if drive_service:
-            
-            extensions = ['.docx', '.xlsx']
-            files = find_files_in_folder(drive_service, extensions)
-            
-            if not files:
-                st.error(f"No files found with extensions {extensions} in the target folder.")
-            else:         
-                for file in files:
-                    if ".docx" in file['name']:
-                        st.session_state["template_path"] = download_file(drive_service, file['id'], file['name'])
-                    elif ".xlsx" in file['name']:
-                        st.session_state["masterliste_path"] = download_file(drive_service, file['id'], file['name'])
-        return files
-    except:
-        return None
 
 if "template_path" not in st.session_state:
     r = set_configuration_files()
     if r is None:
-        st.write("Config failed")
+        st.error("Config failed")
 
 init_rag = OpenAIRAG()
 st.session_state["projects"] = init_rag.list_project_names()
@@ -49,16 +27,6 @@ st.header("📂 Bestehendes Projekt auswählen")
 if not st.session_state["projects"]:
     st.info("Noch keine Projekte vorhanden.")
 else:
-    #project_options = {
-    #    v["projektbezeichnung"]: k for k, v in st.session_state["projects"].items()
-    #}
-
-    #selected_name = st.selectbox(
-    #    "Projekt auswählen",
-     #   options=list(project_options.keys()),
-     #   index=None,
-      #  placeholder="Bitte Projekt auswählen",
-    #)
     selected_name = st.selectbox(
         "Projekt auswählen",
         options=list(st.session_state["projects"].keys()),
@@ -67,13 +35,7 @@ else:
     )
 
     if selected_name:
-        #project_id = project_options[selected_name]
         project_id = st.session_state["projects"][selected_name]
-        #meta = projects[project_id]
-
-        #st.subheader("📌 Projektdetails")
-        #st.write(f"**Objektadresse:** {meta['objektadresse']}")
-        #st.write(f"**Ansprechpartner:** {meta['ansprechpartner']}")
 
         st.session_state["project_id"] = project_id
         st.session_state["projektbezeichnung"] = selected_name
