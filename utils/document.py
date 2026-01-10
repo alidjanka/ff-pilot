@@ -172,13 +172,21 @@ async def fill_flb_document(template_path: str, user_inputs: dict, cover_keys: l
         if len(instructions_clean) > 0:
             print(len(instructions_clean))
             contextual_prompt = rag.build_prompt_with_context(instructions_clean, generated_sections, user_inputs["Projekt"])
-            generated_section = await rag.generate_section(contextual_prompt)
+            generated_section, sources = await rag.generate_section(contextual_prompt)
             generated_sections.append(generated_section)
-            # Completely remove all instruction paragraphs (including bullets)
+            # Format the content with sources
+            content_with_sources = generated_section.content
+
+            if sources:
+                content_with_sources += "\n\n**Quellen:**\n"
+                for source in sources:
+                    content_with_sources += f"- {source['filename']} (Relevanz: {source['score']:.2f})\n"
+
+            # Completely remove all instruction paragraphs
             for p in section["instruction_paras"]:
                 delete_paragraph(p)
 
-            insert_text_block_after(section["title_para"], generated_section.content)
+            insert_text_block_after(section["title_para"], content_with_sources)
         else:
             continue
     # -------------------------------------------------------

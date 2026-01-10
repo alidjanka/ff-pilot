@@ -303,7 +303,30 @@ class OpenAIRAG(RAGBase):
             )  
 
         result = await Runner.run(file_search_agent, prompt)
-        return result.final_output
+        # Extract sources from the file search tool call
+        sources_dict = {}  # Use dict to deduplicate by filename
+        
+        # Look through new_items for the file search tool call
+        for item in result.new_items:
+            if hasattr(item, 'raw_item') and hasattr(item.raw_item, 'type'):
+                if item.raw_item.type == 'file_search_call' and hasattr(item.raw_item, 'results'):
+                    for search_result in item.raw_item.results:
+                        filename = search_result.filename
+                        score = search_result.score
+                        
+                        # Keep only the highest score for each filename
+                        if filename not in sources_dict or score > sources_dict[filename]['score']:
+                            sources_dict[filename] = {
+                                'file_id': search_result.file_id,
+                                'filename': filename,
+                                'score': score,
+                                'text_snippet': search_result.text[:200] if len(search_result.text) > 200 else search_result.text
+                            }
+        
+        # Convert dict to list, sorted by score (highest first)
+        sources = sorted(sources_dict.values(), key=lambda x: x['score'], reverse=True)
+        
+        return result.final_output, sources
 
     def build_context(self, sections: List[Section]) -> str:
         if not sections:
