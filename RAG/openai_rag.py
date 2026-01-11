@@ -21,6 +21,7 @@ set_tracing_export_api_key(st.secrets["openai"]["OPENAI_API_KEY"])
 class Section(BaseModel):
     title: str
     content: str
+    is_project_data_used: bool
 
 class UpdatedDocument(BaseModel):
     content: str

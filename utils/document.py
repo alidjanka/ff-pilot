@@ -176,11 +176,17 @@ async def fill_flb_document(template_path: str, user_inputs: dict, cover_keys: l
             generated_sections.append(generated_section)
             # Format the content with sources
             content_with_sources = generated_section.content
-
+            
+            if generated_section.is_project_data_used:
+                sources.insert(
+                    0,
+                    {'filename': "Masterliste", 'score': 1.0, 'text_snippet': "Projektdaten wurden aus der Masterliste verwendet.", 'file_id':0}
+                )
+                
             if sources:
                 content_with_sources += "\n\n**Quellen:**\n"
                 for source in sources:
-                    content_with_sources += f"- {source['filename']} (Relevanz: {source['score']:.2f})\n"
+                    content_with_sources += f"- {source['filename']} (Relevanz: {source['score'] * 100:.2f}%)\n"
 
             # Completely remove all instruction paragraphs
             for p in section["instruction_paras"]:

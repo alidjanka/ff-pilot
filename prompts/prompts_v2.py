@@ -25,6 +25,7 @@ def create_prompt_v3(
         STEP 1 — Project Data Extraction:
         - Identify all information required by <section_description>
         - Extract all relevant information from <project_data>
+        - Set is_project_data_used to True if project data was used, otherwise False
 
         STEP 2 — File Search (MANDATORY IF DATA IS MISSING):
         - If ANY required information is missing after STEP 1,
