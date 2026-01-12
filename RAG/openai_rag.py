@@ -3,12 +3,16 @@ from openai import OpenAI
 from agents import set_default_openai_key, set_tracing_export_api_key, Agent, FileSearchTool, Runner, trace
 from pydantic import BaseModel
 
-from prompts.prompts import create_prompt
 from prompts.prompts_v2 import create_prompt_v2, create_prompt_v3
+from utils.project_information import create_master_list,retrieve_project
+
 from pathlib import Path
 from typing import List, Iterator
 import time
 import os
+import logging
+import json
+import io
 from dotenv import load_dotenv
 
 import streamlit as st
@@ -230,6 +234,56 @@ class OpenAIRAG(RAGBase):
             vector_store_id=self.vector_store.id,
             file_ids=file_ids
         )
+
+    def upload_masterliste(
+        self,
+        projektbezeichnung,
+        PATH="/tmp/RPS Projekt- und Abrechnungsübersicht.xlsx"
+    ):
+        try:
+            if not os.path.exists(PATH):
+                raise FileNotFoundError
+
+            projects_json = create_master_list(PATH)
+            if not projects_json:
+                logging.warning("create_master_list returned empty result")
+                return None
+
+            project = retrieve_project(projektbezeichnung, projects_json)
+            if not project:
+                logging.warning(f"No project found for '{projektbezeichnung}'")
+                return None
+
+            # Ensure JSON string
+            if isinstance(project, dict):
+                project = json.dumps(project, ensure_ascii=False)
+
+            if not isinstance(project, str):
+                logging.warning("Project is not serializable to JSON")
+                return None
+
+            # Delete existing masterliste.json if present
+            try:
+                files = self.list_files()
+                for f in getattr(files, "data", []):
+                    filename = self.retrieve_filename(f.id)
+                    if filename and filename.lower() == "masterliste.json":
+                        self.delete_file(f.id)
+            except Exception as e:
+                logging.warning(f"Failed while cleaning old masterliste.json: {e}")
+
+            # Create file-like object
+            json_bytes = project.encode("utf-8")
+            masterliste = io.BytesIO(json_bytes)
+            masterliste.name = "masterliste.json"
+
+            file_id = self.ingest_uploaded_file(masterliste)
+            return file_id
+
+        except Exception as e:
+            logging.exception("upload_masterliste failed unexpectedly")
+            return None
+            
         
 ### This part is compatible with streamlit
     def ingest_uploaded_file(self, uploaded_file):

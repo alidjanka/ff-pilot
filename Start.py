@@ -86,7 +86,7 @@ else:
 
         uploaded_files = st.file_uploader(
             "Dokumente auswählen",
-            type=["pdf"],
+            type=["pdf", "png", "jpeg", "jpg"],
             accept_multiple_files=True,
         )
 

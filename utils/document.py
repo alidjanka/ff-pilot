@@ -186,7 +186,7 @@ async def fill_flb_document(template_path: str, user_inputs: dict, cover_keys: l
             if sources:
                 content_with_sources += "\n\n**Quellen:**\n"
                 for source in sources:
-                    content_with_sources += f"- {source['filename']} (Relevanz: {source['score'] * 100:.2f}%)\n"
+                    content_with_sources += f"- {source['filename']}\n"
 
             # Completely remove all instruction paragraphs
             for p in section["instruction_paras"]:
