@@ -134,43 +134,43 @@ with right_col:
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
+    # placeholder at the bottom to scroll to
+    scroll_placeholder = st.empty()
+
     # render chat history
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # determine input placeholder & disabled state
-    if st.session_state.chat_history and st.session_state.chat_history[-1].get("streaming"):
-        input_placeholder = "Antwort wird generiert..."
-        input_disabled = True
-    else:
-        input_placeholder = "Nachricht eingeben..."
-        input_disabled = False
+    streaming = st.session_state.chat_history and st.session_state.chat_history[-1].get("streaming", False)
 
-    user_input = st.chat_input(input_placeholder, disabled=input_disabled)
+    # show input only if not streaming
+    if not streaming:
+        user_input = st.chat_input("Nachricht eingeben...")
 
-    # handle new user input
-    if user_input:
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": user_input
-        })
+        if user_input:
+            st.session_state.chat_history.append({
+                "role": "user",
+                "content": user_input
+            })
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": "💡 Schreibt…",
+                "streaming": True
+            })
+            st.rerun()
 
-        # mark that the assistant is streaming
-        st.session_state.chat_history.append({
-            "role": "assistant",
-            "content": "",
-            "streaming": True
-        })
+    # streaming assistant response
+    elif streaming:
+        last_msg = st.session_state.chat_history[-1]
 
-        st.rerun()
-
-    # streaming block
-    if st.session_state.chat_history and st.session_state.chat_history[-1].get("streaming"):
         with st.chat_message("assistant"):
             placeholder = st.empty()
             full_answer = ""
             cited_files = []
+
+            # start with current content
+            placeholder.markdown(last_msg["content"] + "▌")
 
             for chunk, files in ask_stream(
                 st.session_state.chat_history[-2]["content"],
@@ -179,7 +179,10 @@ with right_col:
                 if chunk:
                     full_answer += chunk
                     placeholder.markdown(full_answer + "▌")
-                    time.sleep(0.02)
+                    time.sleep(0.01)
+
+                    # auto-scroll by moving placeholder to bottom
+                    scroll_placeholder.empty()  # triggers scroll
 
                 if files is not None:
                     cited_files = files
@@ -193,10 +196,12 @@ with right_col:
             )
 
         # update chat history
-        st.session_state.chat_history[-1] = {
-            "role": "assistant",
-            "content": full_answer
-        }
+        last_msg.update({
+            "content": full_answer,
+            "streaming": False
+        })
 
         st.rerun()
+
+
 
