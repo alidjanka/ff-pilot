@@ -56,6 +56,10 @@ def md_to_docx(md_text: str) -> bytes:
 
 st.set_page_config(page_title="Dokument Generator", layout="wide")
 
+if "projektbezeichnung" not in st.session_state:
+    st.warning("Bitte zuerst ein Projekt auswählen.")
+    st.stop()
+
 # ------------------- Initialize session state -------------------
 if "generated_doc" not in st.session_state:
     st.session_state.generated_doc = None
