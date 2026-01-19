@@ -135,6 +135,10 @@ with left_col:
 with right_col:
     st.header("💬 Chat mit deinen Unterlagen")
 
+    if st.button("🗑️ Chat zurücksetzen"):
+        st.session_state.chat_history = []
+        st.rerun()
+
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
