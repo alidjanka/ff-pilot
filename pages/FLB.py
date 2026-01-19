@@ -25,6 +25,12 @@ def ask(query, projekt_bezeichnung):
     answer, file_names = rag.query(query)
     return answer, file_names
 
+def ask_stream(query: str, projekt_bezeichnung: str):
+    rag = OpenAIRAG(projekt_bezeichnung)
+
+    for chunk, files in rag.query_stream(query):
+        yield chunk, files
+
 def md_to_docx(md_text: str) -> bytes:
     """
     Convert markdown or plain text into a .docx file (simple formatting).
@@ -49,6 +55,10 @@ def md_to_docx(md_text: str) -> bytes:
     return buffer.getvalue()
 
 st.set_page_config(page_title="Dokument Generator", layout="wide")
+
+if "projektbezeichnung" not in st.session_state:
+    st.warning("Bitte zuerst ein Projekt auswählen.")
+    st.stop()
 
 # ------------------- Initialize session state -------------------
 if "generated_doc" not in st.session_state:
@@ -125,42 +135,81 @@ with left_col:
 with right_col:
     st.header("💬 Chat mit deinen Unterlagen")
 
+    if st.button("🗑️ Chat zurücksetzen"):
+        st.session_state.chat_history = []
+        st.rerun()
+
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
+    # placeholder at the bottom to scroll to
+    scroll_placeholder = st.empty()
+
+    # render chat history
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    user_input = st.chat_input("Nachricht eingeben...")
+    streaming = st.session_state.chat_history and st.session_state.chat_history[-1].get("streaming", False)
 
-    if user_input:
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": user_input
-        })
+    # show input only if not streaming
+    if not streaming:
+        user_input = st.chat_input("Nachricht eingeben...")
 
-        st.session_state.chat_history.append({
-            "role": "assistant",
-            "content": "_Antwort wird generiert…_"
-        })
+        if user_input:
+            st.session_state.chat_history.append({
+                "role": "user",
+                "content": user_input
+            })
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": "💡 Schreibt…",
+                "streaming": True
+            })
+            st.rerun()
 
-        st.rerun()
+    # streaming assistant response
+    elif streaming:
+        last_msg = st.session_state.chat_history[-1]
 
-    if st.session_state.chat_history and st.session_state.chat_history[-1]["content"] == "_Antwort wird generiert…_":
         with st.chat_message("assistant"):
-            
-            answer, file_names = ask(
+            placeholder = st.empty()
+            full_answer = ""
+            cited_files = []
+
+            # start with current content
+            placeholder.markdown(last_msg["content"] + "▌")
+
+            for chunk, files in ask_stream(
                 st.session_state.chat_history[-2]["content"],
                 st.session_state["projektbezeichnung"]
+            ):
+                if chunk:
+                    full_answer += chunk
+                    placeholder.markdown(full_answer + "▌")
+                    time.sleep(0.01)
+
+                    # auto-scroll by moving placeholder to bottom
+                    scroll_placeholder.empty()  # triggers scroll
+
+                if files is not None:
+                    cited_files = files
+
+            # final message
+            placeholder.markdown(
+                f"""{full_answer}
+
+**Gemäß den folgenden Dateien:** {', '.join(cited_files)}
+"""
             )
 
-        st.session_state.chat_history[-1] = {
-            "role": "assistant",
-            "content": f"""{answer}
-
-            Gemäß den folgenden Dateien: {', '.join(set(file_names))}
-            """
-        }
+        # update chat history
+        last_msg.update({
+            "content": full_answer,
+            "streaming": False
+        })
 
         st.rerun()
+
+
+
