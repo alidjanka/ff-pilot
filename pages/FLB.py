@@ -25,6 +25,12 @@ def ask(query, projekt_bezeichnung):
     answer, file_names = rag.query(query)
     return answer, file_names
 
+def ask_stream(query: str, projekt_bezeichnung: str):
+    rag = OpenAIRAG(projekt_bezeichnung)
+
+    for chunk, files in rag.query_stream(query):
+        yield chunk, files
+
 def md_to_docx(md_text: str) -> bytes:
     """
     Convert markdown or plain text into a .docx file (simple formatting).
@@ -128,39 +134,69 @@ with right_col:
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
+    # render chat history
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    user_input = st.chat_input("Nachricht eingeben...")
+    # determine input placeholder & disabled state
+    if st.session_state.chat_history and st.session_state.chat_history[-1].get("streaming"):
+        input_placeholder = "Antwort wird generiert..."
+        input_disabled = True
+    else:
+        input_placeholder = "Nachricht eingeben..."
+        input_disabled = False
 
+    user_input = st.chat_input(input_placeholder, disabled=input_disabled)
+
+    # handle new user input
     if user_input:
         st.session_state.chat_history.append({
             "role": "user",
             "content": user_input
         })
 
+        # mark that the assistant is streaming
         st.session_state.chat_history.append({
             "role": "assistant",
-            "content": "_Antwort wird generiert…_"
+            "content": "",
+            "streaming": True
         })
 
         st.rerun()
 
-    if st.session_state.chat_history and st.session_state.chat_history[-1]["content"] == "_Antwort wird generiert…_":
+    # streaming block
+    if st.session_state.chat_history and st.session_state.chat_history[-1].get("streaming"):
         with st.chat_message("assistant"):
-            
-            answer, file_names = ask(
+            placeholder = st.empty()
+            full_answer = ""
+            cited_files = []
+
+            for chunk, files in ask_stream(
                 st.session_state.chat_history[-2]["content"],
                 st.session_state["projektbezeichnung"]
+            ):
+                if chunk:
+                    full_answer += chunk
+                    placeholder.markdown(full_answer + "▌")
+                    time.sleep(0.02)
+
+                if files is not None:
+                    cited_files = files
+
+            # final message
+            placeholder.markdown(
+                f"""{full_answer}
+
+**Gemäß den folgenden Dateien:** {', '.join(cited_files)}
+"""
             )
 
+        # update chat history
         st.session_state.chat_history[-1] = {
             "role": "assistant",
-            "content": f"""{answer}
-
-            Gemäß den folgenden Dateien: {', '.join(set(file_names))}
-            """
+            "content": full_answer
         }
 
         st.rerun()
+

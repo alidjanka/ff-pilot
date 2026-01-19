@@ -376,6 +376,79 @@ class OpenAIRAG(RAGBase):
 
         return answer_text, file_names
 
+    def query_stream(
+    self,
+    query: str,
+    masterliste_path: str = "/tmp/RPS Projekt- und Abrechnungsübersicht.xlsx"
+):
+        projects_json = create_master_list(masterliste_path)
+        project_data = retrieve_project(self.projektbezeichnung, projects_json)
+
+        with self.client.responses.stream(
+            model=self.model,
+            input=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You have access to:\n"
+                        "1) Structured project data provided below (authoritative, always up to date).\n"
+                        "2) Project documents accessible via file_search.\n\n"
+                        "Decision policy:\n"
+                        "1. FIRST use the structured project data if it directly answers the question.\n"
+                        "2. Otherwise, determine whether the question could be answered using the uploaded documents.\n"
+                        "3. If there is a reasonable chance the documents contain relevant information, use file_search.\n"
+                        "4. If file_search returns no relevant information, or the documents do not contain the answer, "
+                        "then answer using general knowledge.\n"
+                        "5. If structured project data conflicts with document content, ALWAYS trust the structured project data.\n"
+                        "6. Do NOT invent document-based answers. Be explicit when information is not available.\n\n"
+                        "Language & intent rules:\n"
+                        "- Always answer in the same language as the user.\n"
+                        "- Treat phrases such as \"laut Dokument\", \"gemäß\", \"in Abschnitt\", \"im FLB\", "
+                        "\"in der Unterlage\" or similar as strong signals to prioritize file_search."
+                    ),
+                },
+                {
+                    "role": "system",
+                    "content": (
+                        "Structured project data (authoritative context, do not quote unless explicitly asked):\n"
+                        f"{project_data}"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": query,
+                },
+            ],
+            tools=[{
+                "type": "file_search",
+                "vector_store_ids": [self.vector_store.id]
+            }],
+        ) as stream:
+
+            full_text = ""
+            file_names = set()
+
+            for event in stream:
+                # 🔹 stream tokens
+                if event.type == "response.output_text.delta":
+                    full_text += event.delta
+                    yield event.delta, None
+
+                # 🔹 final response (citations live here)
+                elif event.type == "response.completed":
+                    response = event.response
+
+                    for item in response.output:
+                        if getattr(item, "type", None) == "message":
+                            for block in item.content:
+                                if hasattr(block, "annotations") and block.annotations:
+                                    for ann in block.annotations:
+                                        if ann.type == "file_citation":
+                                            file_names.add(ann.filename)
+
+                    yield None, list(file_names)
+
+
     async def generate_section(self, prompt):
         file_search_agent = Agent(
                 name="File searcher",
