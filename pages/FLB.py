@@ -11,7 +11,7 @@ import time
 
 from prompts.prompts import Sections
 from utils.document import fill_flb_document
-from utils.file_system import set_configuration_files
+from utils.file_system import set_configuration_files, update_configuration_files
 
 MAX_PROJEKTE=30
 
@@ -22,12 +22,13 @@ async def generate_document(sections):
 
 def ask(query, projekt_bezeichnung):
     rag = OpenAIRAG(projekt_bezeichnung)
+    is_updated = update_configuration_files()
     answer, file_names = rag.query(query)
     return answer, file_names
 
 def ask_stream(query: str, projekt_bezeichnung: str):
     rag = OpenAIRAG(projekt_bezeichnung)
-
+    is_updated = update_configuration_files()
     for chunk, files in rag.query_stream(query):
         yield chunk, files
 
@@ -105,6 +106,7 @@ with left_col:
 
     if st.button("📄 FLB generieren", disabled=doc_generation_disabled):     
         #st.session_state.generated_doc = asyncio.run(generate_document(Sections))
+        is_updated = update_configuration_files()
         with st.spinner("FLB wird generiert …"):
             try:
                 st.session_state.generated_doc = asyncio.run(fill_flb_document(template_path=st.session_state["template_path"], user_inputs={

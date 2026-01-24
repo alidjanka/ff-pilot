@@ -19,6 +19,9 @@ if "template_path" not in st.session_state:
 
 init_rag = OpenAIRAG()
 st.session_state["projects"] = init_rag.list_project_names()
+if "last_modified_time" not in st.session_state:
+    st.session_state["last_modified_time"] = None
+
 # =====================================================
 # SECTION A — Bestehendes Projekt auswählen
 # =====================================================

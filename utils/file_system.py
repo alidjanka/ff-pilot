@@ -97,6 +97,24 @@ def download_file(service, file_id, file_name):
             status, done = downloader.next_chunk()
     return local_path
 
+def get_file_metadata(service, file_id):
+    file = service.files().get(
+        fileId=file_id,
+        fields="id, name, modifiedTime, md5Checksum"
+    ).execute()
+    return file
+
+def download_updated_file(service, file_id, file_name):
+    meta = get_file_metadata(service, file_id)
+
+    if st.session_state["last_modified_time"] != meta["modifiedTime"]:
+        local_path = download_file(service, file_id, file_name)
+        st.session_state["last_modified_time"] = meta["modifiedTime"]
+        return True  # downloaded
+    else:
+        return False  # no change
+
+
 def set_configuration_files(extensions=['.docx', '.xlsx']):
     try:
         drive_service = get_drive_service()
@@ -111,8 +129,28 @@ def set_configuration_files(extensions=['.docx', '.xlsx']):
                 for file in files:
                     if ".docx" in file['name']:
                         st.session_state["template_path"] = download_file(drive_service, file['id'], file['name'])
-                    elif ".xlsx" in file['name']:
+                    if ".xlsx" in file['name']:
                         st.session_state["masterliste_path"] = download_file(drive_service, file['id'], file['name'])
         return files
+    except:
+        return None
+
+def update_configuration_files(extensions=['.docx', '.xlsx']):
+    try:
+        drive_service = get_drive_service()
+
+        if drive_service:
+            
+            files = find_files_in_folder(drive_service, extensions)
+            
+            if not files:
+                st.error(f"No files found with extensions {extensions} in the target folder.")
+            else:         
+                for file in files:
+                    if ".docx" in file['name']:
+                        is_vorlage_updated = download_updated_file(drive_service, file['id'], file['name'])
+                    if ".xlsx" in file['name']:
+                        is_masterliste_updated = download_updated_file(drive_service, file['id'], file['name'])
+        return is_vorlage_updated, is_masterliste_updated
     except:
         return None
