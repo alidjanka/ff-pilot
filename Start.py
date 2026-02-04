@@ -7,7 +7,8 @@ from utils.file_system import set_configuration_files
 
 MAX_PROJEKTE=30
 
-st.title("📁 Projekte")
+#st.title("📁 Projekte")
+st.image("assets/logo_2.svg", width=200)
 st.markdown(
         "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
     )

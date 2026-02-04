@@ -11,7 +11,7 @@ import time
 
 from prompts.prompts import Sections
 from utils.document import fill_flb_document
-from utils.file_system import set_configuration_files, update_configuration_files
+from utils.file_system import set_configuration_files, update_configuration_files, save_generated_doc_to_drive
 
 MAX_PROJEKTE=30
 
@@ -55,6 +55,7 @@ def md_to_docx(md_text: str) -> bytes:
     buffer.seek(0)
     return buffer.getvalue()
 
+
 st.set_page_config(page_title="Dokument Generator", layout="wide")
 
 if "projektbezeichnung" not in st.session_state:
@@ -69,7 +70,7 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # ------------------- Layout -------------------
-st.image("assets/logo.png", width=800)
+st.image("assets/logo_2.svg", width=200)
 #st.title("Mogli - FF Pilot")
 
 # Two columns for split screen
@@ -81,19 +82,19 @@ with left_col:
     st.markdown(
         "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
     )
-    if st.button("Aktualisiere Vorlage & Masterliste"):
-        with st.spinner("Projektinformationen werden aktualisiert …"):
-            try:
-                os.remove(st.session_state["masterliste_path"])
-                os.remove(st.session_state["template_path"])
-            except:
-                pass
-            time.sleep(3)
-            r = set_configuration_files()
-            if r is None:
-                st.error("Aktualisierung fehlgeschlagen")
-            else:
-                st.success("Aktualisiert!")
+#    if st.button("Aktualisiere Vorlage & Masterliste"):
+#        with st.spinner("Projektinformationen werden aktualisiert …"):
+#            try:
+#                os.remove(st.session_state["masterliste_path"])
+#                os.remove(st.session_state["template_path"])
+#            except:
+#                pass
+#            time.sleep(3)
+#            r = set_configuration_files()
+#            if r is None:
+#                st.error("Aktualisierung fehlgeschlagen")
+#            else:
+#                st.success("Aktualisiert!")
     if len(st.session_state["projects"]) > MAX_PROJEKTE:
         st.warning(f"Maximal erluabte Anzahl von Projekten ist {MAX_PROJEKTE}. Lösche ein altes Projekt und versuch erneut.")
         doc_generation_disabled= True
@@ -114,7 +115,8 @@ with left_col:
                     "Objektadresse": st.session_state["objektadresse"],
                     "Ansprechpartner": st.session_state["ansprechpartner"]
                 }))
-                st.success("Dokument bereit zum Download!")
+                
+                st.success("Dokument ist generiert!")
             except:
                 st.warning("Es kann einige Zeit dauern, bis Änderungen in der Vorlage und der Masterliste wirksam werden. Bitte warten Sie einen Moment und aktualisieren Sie die Vorlage & Masterliste erneut.")
 
@@ -122,12 +124,19 @@ with left_col:
 
     if st.session_state.generated_doc:
         st.subheader("📘 Generiertes Dokument")
-        #st.markdown(st.session_state.generated_doc)
-        #docx_bytes = md_to_docx(st.session_state.generated_doc)
+        if st.button("📁 Dokument in Google Drive speichern"):
+            # TODO: I don't have write permissions!!
+            saved_file_metadata = save_generated_doc_to_drive(
+                    project_name=st.session_state["projektbezeichnung"],
+                    generated_doc=st.session_state.generated_doc
+                )
+            st.success("Dokument ist im Google Drive gespeichert!")
+        
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         st.download_button(
         label="📥 Download",
         data=st.session_state.generated_doc,
-        file_name=f"FLB_Repowering_{datetime.date.today()}.docx",
+        file_name=f"FLB_{st.session_state['projektbezeichnung']}_{timestamp}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
     else:
