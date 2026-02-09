@@ -7,9 +7,11 @@ from utils.file_system import set_configuration_files
 
 MAX_PROJEKTE=30
 
-st.title("📁 Projekte")
-st.markdown(
-        "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
+#st.title("📁 Projekte")
+st.image("assets/logo_2.svg", width=200)
+
+st.link_button(
+        "📁 Archiv","https://drive.google.com/drive/u/2/folders/0AM0hPlPro9rvUk9PVA"
     )
 
 if "template_path" not in st.session_state:
@@ -19,6 +21,9 @@ if "template_path" not in st.session_state:
 
 init_rag = OpenAIRAG()
 st.session_state["projects"] = init_rag.list_project_names()
+if "last_modified_time" not in st.session_state:
+    st.session_state["last_modified_time"] = None
+
 # =====================================================
 # SECTION A — Bestehendes Projekt auswählen
 # =====================================================
