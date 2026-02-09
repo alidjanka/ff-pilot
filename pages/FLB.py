@@ -79,22 +79,9 @@ left_col, right_col = st.columns([1, 1])
 # ------------------- LEFT COLUMN: DOCUMENT GENERATOR -------------------
 with left_col:
     st.header("📄 FLB Generator")
-    st.markdown(
-        "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
+    st.link_button(
+        "📁 Archiv","https://drive.google.com/drive/u/2/folders/0AM0hPlPro9rvUk9PVA"
     )
-#    if st.button("Aktualisiere Vorlage & Masterliste"):
-#        with st.spinner("Projektinformationen werden aktualisiert …"):
-#            try:
-#                os.remove(st.session_state["masterliste_path"])
-#                os.remove(st.session_state["template_path"])
-#            except:
-#                pass
-#            time.sleep(3)
-#            r = set_configuration_files()
-#            if r is None:
-#                st.error("Aktualisierung fehlgeschlagen")
-#            else:
-#                st.success("Aktualisiert!")
     if len(st.session_state["projects"]) > MAX_PROJEKTE:
         st.warning(f"Maximal erluabte Anzahl von Projekten ist {MAX_PROJEKTE}. Lösche ein altes Projekt und versuch erneut.")
         doc_generation_disabled= True
@@ -115,23 +102,20 @@ with left_col:
                     "Objektadresse": st.session_state["objektadresse"],
                     "Ansprechpartner": st.session_state["ansprechpartner"]
                 }))
-                
-                st.success("Dokument ist generiert!")
-            except:
-                st.warning("Es kann einige Zeit dauern, bis Änderungen in der Vorlage und der Masterliste wirksam werden. Bitte warten Sie einen Moment und aktualisieren Sie die Vorlage & Masterliste erneut.")
-
-    st.markdown("---")
-
-    if st.session_state.generated_doc:
-        st.subheader("📘 Generiertes Dokument")
-        if st.button("📁 Dokument in Google Drive speichern"):
-            # TODO: I don't have write permissions!!
-            saved_file_metadata = save_generated_doc_to_drive(
+                saved_file_metadata = save_generated_doc_to_drive(
                     project_name=st.session_state["projektbezeichnung"],
                     generated_doc=st.session_state.generated_doc
                 )
-            st.success("Dokument ist im Google Drive gespeichert!")
-        
+                st.session_state.generated_file_link = saved_file_metadata["generated_file_link"]
+                st.success("Dokument ist generiert!")
+            except:
+                st.error("Etwas ist schief gelaufen. Bitte versuchen Sie es erneut.")
+
+    st.markdown("---")
+
+    if st.session_state.generated_doc and st.session_state.generated_file_link:
+        st.subheader("📘 Generiertes Dokument")
+        st.link_button("📁 Dokument im Google Drive öffnen", url=st.session_state.generated_file_link)
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         st.download_button(
         label="📥 Download",

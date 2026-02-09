@@ -10,8 +10,8 @@ MAX_PROJEKTE=30
 #st.title("📁 Projekte")
 st.image("assets/logo_2.svg", width=200)
 
-st.markdown(
-        "[📄 Vorlage & Masterliste hier](https://drive.google.com/drive/folders/1rrX8hLwrIwzfzdOsyAF4O1TaXfSmhCMc?usp=sharing)"
+st.link_button(
+        "📁 Archiv","https://drive.google.com/drive/u/2/folders/0AM0hPlPro9rvUk9PVA"
     )
 
 if "template_path" not in st.session_state:

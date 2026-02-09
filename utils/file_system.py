@@ -257,14 +257,16 @@ def save_generated_doc_to_drive(
         resumable=False
     )
 
+    # Upload as Google Doc by setting the target mimeType.
     generated_file = service.files().create(
         body={
             "name": generated_filename,
-            "parents": [version_folder_id]
+            "parents": [version_folder_id],
+            "mimeType": "application/vnd.google-apps.document"
         },
         media_body=generated_media,
         supportsAllDrives=True,
-        fields="id, name"
+        fields="id, name, webViewLink"
     ).execute()
 
     uploaded_files.append(generated_file)
@@ -280,7 +282,7 @@ def save_generated_doc_to_drive(
 
         template_media = MediaFileUpload(
             template_path,
-            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            mimetype="application/vnd.openxmlformats-officedocument.woproject_folder_idrdprocessingml.document",
             resumable=False
         )
 
@@ -299,5 +301,6 @@ def save_generated_doc_to_drive(
     return {
         "project_folder_id": project_folder_id,
         "version_folder_id": version_folder_id,
-        "files": uploaded_files
+        "files": uploaded_files,
+        "generated_file_link": generated_file.get("webViewLink")
     }
